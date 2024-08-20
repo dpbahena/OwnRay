@@ -1,5 +1,6 @@
 #include "cudaCall.h"
 #include "my_cudahelpers.h"
+#include "my_classes.h"
 #include "renderer.hpp"
 
 #include <iostream>
@@ -9,37 +10,47 @@
 
 namespace rayos {
 
-    #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
+    // #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
 
-    void check_cuda(cudaError_t result, char const *const func, const char *const file, int const line) {
-        if (result) {
-            std::cerr << "CUDA error = " << static_cast<unsigned int>(result) << " at " <<
-                file << ":" << line << " '" << func << "' \n";
-            // Make sure we call CUDA Device Reset before exiting
-            cudaDeviceReset();
-            exit(99);
+    // void check_cuda(cudaError_t result, char const *const func, const char *const file, int const line) {
+    //     if (result) {
+    //         std::cerr << "CUDA error = " << static_cast<unsigned int>(result) << " at " <<
+    //             file << ":" << line << " '" << func << "' \n";
+    //         // Make sure we call CUDA Device Reset before exiting
+    //         cudaDeviceReset();
+    //         exit(99);
+    //     }
+    // }
+
+    #define checkCudaErrors(result) { gpuAssert((result), __FILE__, __LINE__); }
+    inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
+        if (code != cudaSuccess) {
+            fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+            if (abort) assert(code == cudaSuccess);
         }
     }
 
 
 
-    __global__ void render_kernel(uint32_t* buffer, int width, int height){
+    __global__ void render_kernel(uint32_t* buffer, int width, int height, vec3 camaraCenter, vec3 delta_u, vec3 delta_v, vec3 pixel00){
         int i = threadIdx.x + blockIdx.x * blockDim.x;
         int j = threadIdx.y + blockIdx.y * blockDim.y;
         int idx = width * j + i;
-        vec3 color = vec3(0.0f, 0.0f, 0.0f);
-
-        if (idx >= (width * height)) return;
-        color.x = i / (width - 1.0f);
-        color.y = j / (height - 1.0f);
-        color.z = 0.0;
         
+        if (idx >= (width * height)) return;
+        
+        auto pixel_center = pixel00 + (static_cast<float>(i) * delta_u) + (static_cast<float>(j) * delta_v);
+        auto ray_direction = pixel_center - camaraCenter;
+        ray r(camaraCenter, ray_direction);
+
+        vec3 color = ray_color(r);
+              
         buffer[idx] = colorToUint32_t(color);
         
     }
 
 
-    void CudaCall::cudaCall(int width, int height)
+    void CudaCall::cudaCall(int width, int height, Data& data)
     {
         
         Renderer renderer{window};
@@ -54,7 +65,7 @@ namespace rayos {
         int blocks_y = (height + blockSize.y - 1) / blockSize.y;
         dim3 gridSize(blocks_x, blocks_y);
 
-        render_kernel<<<gridSize, blockSize>>>(colorBuffer, width, height);
+        render_kernel<<<gridSize, blockSize>>>(colorBuffer, width, height, data.center, data.delta_u, data.delta_v, data.pixel000);
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize() );
 

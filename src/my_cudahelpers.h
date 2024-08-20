@@ -1,10 +1,13 @@
 #pragma once
 
 #include "definitions.h"
-
+#include "my_classes.h"
 #include <cuda_runtime.h>
 
 namespace rayos {
+
+    __device__
+    vec3 ray_color(const ray& r);
 
     __device__ 
     uint32_t colorToUint32_t(glm::vec3& c)
@@ -28,6 +31,13 @@ namespace rayos {
         uint32_t color = (0x00 << 24) | (ri << 16) | (gi << 8) | bi;
 
         return color;
+    }
+
+    __device__
+    vec3 ray_color(const ray& r){
+        vec3 unit_vector = glm::normalize(r.direction());
+        float a = 0.5f * (unit_vector.y + 1.0f);
+        return (1.0f - a) * vec3(1.0f, 1.0f, 1.0f) + a * vec3(0.5f, 0.7f, 1.0f);
     }
 
 }

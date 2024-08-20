@@ -35,6 +35,13 @@ namespace rayos {
         uint32_t height;
     }Extent2D;
 
+    struct Data{
+        point center;
+        vec3 pixel000;
+        vec3 delta_u;
+        vec3 delta_v;
+    };
+
     
 
     // Constants

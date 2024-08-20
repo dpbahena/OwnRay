@@ -7,3 +7,5 @@ Chapter 2.
 
 Chapter 4.
 
+![Screenshot of the project](sampleImages/chap4.png)
+

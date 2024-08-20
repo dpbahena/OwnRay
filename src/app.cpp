@@ -4,6 +4,7 @@
 
 namespace rayos {
 
+    
     App::App()
     {
         
@@ -17,6 +18,17 @@ namespace rayos {
     }
 
     void App::run() {
+
+        Data data;
+        camera.camera_center = vec3(0.0f, 0.0f, 0.0f);
+        camera.update();
+
+        data.center = camera.camera_center;
+        data.delta_u = camera.pixel_delta_u;
+        data.delta_v = camera.pixel_delta_v;
+        data.pixel000 = camera.pixel00_loc;
+
+
 
         // uint32_t* colorBuffer = nullptr;
         // cam.image_width = WIDTH;
@@ -34,7 +46,7 @@ namespace rayos {
         
         while (window.windowIsOpen()){
 
-            rayTracer.cudaCall(window.getExtent().width, window.getExtent().height);
+            rayTracer.cudaCall(window.getExtent().width, window.getExtent().height, data);
             
             
                        
