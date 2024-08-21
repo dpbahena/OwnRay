@@ -32,7 +32,7 @@ namespace rayos {
 
 
 
-    __global__ void render_kernel(uint32_t* buffer, int width, int height, vec3 camaraCenter, vec3 delta_u, vec3 delta_v, vec3 pixel00){
+    __global__ void render_kernel(uint32_t* buffer, int width, int height, vec3 cameraCenter, vec3 delta_u, vec3 delta_v, vec3 pixel00){
         int i = threadIdx.x + blockIdx.x * blockDim.x;
         int j = threadIdx.y + blockIdx.y * blockDim.y;
         int idx = width * j + i;
@@ -40,8 +40,8 @@ namespace rayos {
         if (idx >= (width * height)) return;
         
         auto pixel_center = pixel00 + (static_cast<float>(i) * delta_u) + (static_cast<float>(j) * delta_v);
-        auto ray_direction = pixel_center - camaraCenter;
-        ray r(camaraCenter, ray_direction);
+        auto ray_direction = pixel_center - cameraCenter;
+        ray r(cameraCenter, ray_direction);
 
         vec3 color = ray_color(r);
               
@@ -59,6 +59,9 @@ namespace rayos {
         
 
         checkCudaErrors(cudaMallocManaged(&colorBuffer, width * height * sizeof(uint32_t)));
+
+        clock_t start, stop;
+        start = clock();
         int threads = 32;
         dim3 blockSize(threads, threads);
         int blocks_x = (width + blockSize.x - 1) / blockSize.x;
@@ -68,6 +71,10 @@ namespace rayos {
         render_kernel<<<gridSize, blockSize>>>(colorBuffer, width, height, data.center, data.delta_u, data.delta_v, data.pixel000);
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize() );
+        stop = clock();
+        double timer_seconds = ((double)(stop - start)) / CLOCKS_PER_SEC;
+        std::cerr << "took " << timer_seconds << " seconds.\n";
+
 
         renderer.render(colorBuffer);
         

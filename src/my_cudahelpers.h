@@ -8,6 +8,11 @@ namespace rayos {
 
     __device__
     vec3 ray_color(const ray& r);
+    __device__
+    bool hit_sphere(const point& center, float radius, const ray& r);
+    __device__  
+    uint32_t colorToUint32_t(glm::vec3& c);
+
 
     __device__ 
     uint32_t colorToUint32_t(glm::vec3& c)
@@ -35,9 +40,22 @@ namespace rayos {
 
     __device__
     vec3 ray_color(const ray& r){
+        if (hit_sphere(point(0.0f, 0.0f, -1.0f), 0.5f, r)){
+            return vec3(1.0f, 0.0f, 0.0f);
+        }
         vec3 unit_vector = glm::normalize(r.direction());
         float a = 0.5f * (unit_vector.y + 1.0f);
         return (1.0f - a) * vec3(1.0f, 1.0f, 1.0f) + a * vec3(0.5f, 0.7f, 1.0f);
+    }
+
+    __device__
+    bool hit_sphere(const point& center, float radius, const ray& r) {
+        vec3 oc = center - r.origin();
+        float a = glm::dot(r.direction(), r.direction());
+        float b = -2.0f * glm::dot(r.direction(), oc);
+        float c = glm::dot(oc, oc) - radius * radius;
+        float discriminant = b * b - 4 * a * c;
+        return (discriminant >= 0);
     }
 
 }
