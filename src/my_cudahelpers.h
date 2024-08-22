@@ -38,7 +38,7 @@ namespace rayos {
 
     __device__
     float random_float(curandState_t* state) {
-        return curand_uniform(state);
+        return curand_uniform_double(state);
     }
 
     __device__ 
@@ -79,7 +79,7 @@ namespace rayos {
     __device__
     vec3 random_in_unit_sphere(curandState_t* states,  int i, int j) {
         while (true) {
-            vec3 p = random_vector_in_range(states, i, j,  -1.0,1.0);
+            vec3 p = random_vector_in_range(states, i, j,  -1.0f,1.0f);
             if (glm::dot(p,p) < 1.0f){
                 return p;
             }
@@ -101,11 +101,13 @@ namespace rayos {
     vec3 sample_square(curandState_t* states, int& i, int& j) {
         curandState_t x = states[i];
         curandState_t y = states[j];
+        vec3 random_vector =  vec3(random_float(&x) - 0.5f, random_float(&y) - 0.5f, 0);
+        
         states[i] = x; // save back the value  
-        states[j] = y; // save back the value  
-        return vec3(random_float(&x) - 0.5f, random_float(&y) - 0.5f, 0);
-        // return vec3(random_float(&x) - 0.0, random_float(&y) - 0.0, 0);
-         
+        states[j] = y; // save back the value 
+        
+        return random_vector;
+        
     }
 
     /* Returns the vector to a random point in the  [-0.5, -0.5] - [0.5, 0.5] unit square */
@@ -125,6 +127,7 @@ namespace rayos {
         c.y = (c.y < 0.0f) ? 0.0f : ((c.y > 1.0f) ? 1.0f : c.y);  // green
         c.z = (c.z < 0.0f) ? 0.0f : ((c.z > 1.0f) ? 1.0f : c.z);  // blue
 
+       
         // Apply a linear to gamma transform for gamma 2
         // c.x = linear_to_gamma(c.x);
         // c.y = linear_to_gamma(c.y);
