@@ -17,6 +17,8 @@ namespace rayos{
             vec3 pixel00_loc;
             vec3 pixel_delta_u;
             vec3 pixel_delta_v;
+            int samples_per_pixel           = 100;
+            float sample_scale;
 
 
         void update(){
@@ -34,6 +36,8 @@ namespace rayos{
             /* Calculate the locations of the upper left pixel */
             auto viewport_upper_left = camera_center - vec3(0.0f, 0.0f, focal_length) - viewport_u / 2.0f - viewport_v / 2.0f;
             pixel00_loc = viewport_upper_left + 0.5f * (pixel_delta_u + pixel_delta_v);
+
+            sample_scale = 1.0f / static_cast<float>(samples_per_pixel);
 
 
 

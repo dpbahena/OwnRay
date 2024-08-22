@@ -13,7 +13,12 @@ combine both my approach and JoeAllan
 
 ![Screenshot of the project](sampleImages/chap5.png)
 
-# Chapter 6 and 7.
+# Chapter 6.
 ## Introduction of abstract class and virtual functions
 
 ![Screenshot of the project](sampleImages/chap6.png)
+
+# Chapter 7. Antialiasing
+## Introduction of  curandState_t* states in Cuda
+![Screenshot of the project](sampleImages/chap7.png)
+

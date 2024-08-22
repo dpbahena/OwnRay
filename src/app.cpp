@@ -21,12 +21,15 @@ namespace rayos {
 
         Data data;
         camera.camera_center = vec3(0.0f, 0.0f, 0.0f);
+        camera.samples_per_pixel = 100;
         camera.update();
 
-        data.center = camera.camera_center;
-        data.delta_u = camera.pixel_delta_u;
-        data.delta_v = camera.pixel_delta_v;
-        data.pixel000 = camera.pixel00_loc;
+        data.center     = camera.camera_center;
+        data.delta_u    = camera.pixel_delta_u;
+        data.delta_v    = camera.pixel_delta_v;
+        data.pixel000   = camera.pixel00_loc;
+        data.samples    = camera.samples_per_pixel;
+        data.scale      = camera.sample_scale;
 
 
 
@@ -48,13 +51,14 @@ namespace rayos {
 
             rayTracer.cudaCall(window.getExtent().width, window.getExtent().height, data);
             
-            
+            data.samples    = camera.samples_per_pixel;
+            data.scale      = camera.sample_scale;
                        
             
             processInput();
 
             // SDL_WaitEvent;
-            // SDL_Delay(5000);
+            // SDL_Delay(2000);
 
             // break;
             
@@ -126,10 +130,13 @@ namespace rayos {
                     case SDLK_0:
                         break;
                     case SDLK_EQUALS:
+                        camera.samples_per_pixel += 1;
+                        camera.update();
                         
                         break;
                     case SDLK_MINUS:
-                       
+                        camera.samples_per_pixel -= 1;
+                        camera.update();
 
                         break;
                   

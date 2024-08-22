@@ -40,6 +40,8 @@ namespace rayos {
         vec3 pixel000;
         vec3 delta_u;
         vec3 delta_v;
+        float samples;
+        float scale;
     };
 
     
