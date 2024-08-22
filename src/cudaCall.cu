@@ -108,6 +108,7 @@ namespace rayos {
             float v = float(j + curand_uniform(&local_rand_state)) / float(height);
             ray r = get_ray2(i, j, pixel00, cameraCenter, delta_u, delta_v, u, v);
             color += ray_color(r, world);
+            rand_state[idx] = local_rand_state; // save back the value
         }
 
         // auto pixel_center = pixel00 + (static_cast<float>(i) * delta_u) + (static_cast<float>(j) * delta_v);
