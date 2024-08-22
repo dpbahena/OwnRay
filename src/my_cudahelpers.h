@@ -6,15 +6,20 @@
 
 namespace rayos {
 
-    __device__
+    __device__  __forceinline__
     vec3 ray_color(const ray& r);
-    __device__
-    bool hit_sphere(const point& center, float radius, const ray& r);
-    __device__  
+    __device__  __forceinline__
+    vec3 ray_color(const ray& r, hittable** world);
+    __device__  __forceinline__
+    float hit_sphere(const point& center, float radius, const ray& r);
+    __device__   __forceinline__
     uint32_t colorToUint32_t(glm::vec3& c);
 
+    const interval interval::empty          = interval(+MAXFLOAT, -MAXFLOAT);
+    const interval interval::universe       = interval(-MAXFLOAT, +MAXFLOAT);
 
-    __device__ 
+
+    __device__  __forceinline__
     uint32_t colorToUint32_t(glm::vec3& c)
     {
         /* Ensure that the input values within the range [0.0, 1.0] */
@@ -38,24 +43,44 @@ namespace rayos {
         return color;
     }
 
-    __device__
+    __device__ __forceinline__
     vec3 ray_color(const ray& r){
-        if (hit_sphere(point(0.0f, 0.0f, -1.0f), 0.5f, r)){
-            return vec3(1.0f, 0.0f, 0.0f);
+        float t = hit_sphere(point(0.0f, 0.0f, -1.0f), 0.5f, r);
+        if (t > 0.0f){
+            vec3 normal = glm::normalize(r.at(t) - vec3(0.0f, 0.0f, -1.0f));
+            return 0.5f * vec3(normal.x + 1.0f, normal.y + 1.0f, normal.z + 1.0f);
         }
         vec3 unit_vector = glm::normalize(r.direction());
         float a = 0.5f * (unit_vector.y + 1.0f);
         return (1.0f - a) * vec3(1.0f, 1.0f, 1.0f) + a * vec3(0.5f, 0.7f, 1.0f);
     }
 
-    __device__
-    bool hit_sphere(const point& center, float radius, const ray& r) {
+    __device__ __forceinline__
+    float hit_sphere(const point& center, float radius, const ray& r) {
         vec3 oc = center - r.origin();
         float a = glm::dot(r.direction(), r.direction());
-        float b = -2.0f * glm::dot(r.direction(), oc);
+        float h = glm::dot(r.direction(), oc);
         float c = glm::dot(oc, oc) - radius * radius;
-        float discriminant = b * b - 4 * a * c;
-        return (discriminant >= 0);
+        float discriminant = h * h -  a * c;
+        if (discriminant < 0 ) {
+            return -1.0f;
+        } else {
+             return (h - sqrt(discriminant) ) / a;
+        }
+    }
+
+    __device__  __forceinline__
+    vec3 ray_color(const ray& r, hittable** world){
+        hit_record rec;
+        vec3 color = vec3(1.0f, 1.0f, 1.0f);
+        if ((*world)->hit(r, interval(0, MAXFLOAT), rec)){
+            return 0.5f * (rec.normal  + color); 
+        }
+        vec3 unit_vector = glm::normalize(r.direction());
+        float a = 0.5f * (unit_vector.y + 1.0f);
+        return (1.0f - a) * vec3(1.0f, 1.0f, 1.0f) + a * vec3(0.5f, 0.7f, 1.0f);
+
+
     }
 
 }
