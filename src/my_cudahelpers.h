@@ -3,7 +3,7 @@
 #include "definitions.h"
 #include "my_classes.h"
 #include <cuda_runtime.h>
-#include <curand_kernel.h>
+
 
 namespace rayos {
 
@@ -29,8 +29,7 @@ namespace rayos {
     vec3 random_unit_vector(curandState_t* states,  int i, int j);
      __device__
     vec3 random_on_hemisphere(curandState_t* states, int i, int j, const vec3& normal);
-    __device__
-    vec3 sample_square(curandState_t* states, int& i, int& j);
+
 
     const interval interval::empty          = interval(+MAXFLOAT, -MAXFLOAT);
     const interval interval::universe       = interval(-MAXFLOAT, +MAXFLOAT);
@@ -110,13 +109,6 @@ namespace rayos {
         
     }
 
-    /* Returns the vector to a random point in the  [-0.5, -0.5] - [0.5, 0.5] unit square */
-    __device__
-    vec3 sample_square2(float& x, float& y) {
-          
-        return vec3(x - 0.5, y - 0.5, 0);
-         
-    }
 
 
     __device__  __forceinline__
@@ -183,32 +175,19 @@ namespace rayos {
 
 
     }
-    __device__
-    ray get_ray(int& i, int& j, vec3& pixel00_loc, vec3& cameraCenter, vec3& delta_u, vec3& delta_v, curandState_t* states) {
-        /* construct a ray originating from the origin and directed at randomly sampled point around the pixel location i, j */
-        auto offset = sample_square(states, i, j);
-        auto pixel_sample = pixel00_loc + ((i + offset.x) * delta_u) + ((j + offset.y) * delta_v);
+    // __device__
+    // ray get_ray(int& i, int& j, vec3& pixel00_loc, vec3& cameraCenter, vec3& delta_u, vec3& delta_v, curandState_t* states) {
+    //     /* construct a ray originating from the origin and directed at randomly sampled point around the pixel location i, j */
+    //     auto offset = sample_square(states, i, j);
+    //     auto pixel_sample = pixel00_loc + ((i + offset.x) * delta_u) + ((j + offset.y) * delta_v);
 
-        auto ray_origin     = cameraCenter;
-        auto ray_direction  = pixel_sample - ray_origin;
+    //     auto ray_origin     = cameraCenter;
+    //     auto ray_direction  = pixel_sample - ray_origin;
 
-        return ray(ray_origin, ray_direction); 
+    //     return ray(ray_origin, ray_direction); 
 
-    }
+    // }
 
-    __device__
-    ray get_ray2(int& i, int& j, vec3& pixel00_loc, vec3& cameraCenter, vec3& delta_u, vec3& delta_v, float u, float v) {
-        /* construct a ray originating from the origin and directed at randomly sampled point around the pixel location i, j */
-        // vec3 offset = sample_square2(u, v);
-        // auto pixel_sample = pixel00_loc + (i + offset.x) * delta_u + (j + offset.y) * delta_v;
-        auto pixel_sample = pixel00_loc + (i+u) *delta_u + (j+v)*delta_v;
-
-        auto ray_origin     = cameraCenter;
-        auto ray_direction  = pixel_sample - ray_origin;
-
-        return ray(ray_origin, ray_direction); 
-        
-
-    }
+    
 
 }

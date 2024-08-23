@@ -6,7 +6,8 @@
 # Compiler flags
 # CFLAGS = -std=c++17 -Wall -g -I$(TINYOBJ_INCLUDE_PATH) -I$(STB_INCLUDE_PATH) -I$(NLOHMANN_JSON_PATH)
 CFLAGS = -std=c++17 -Wall -g 
-LDFLAGS = -lSDL2 -lcurl
+# LDFLAGS = -lSDL2 -lcurl
+LDFLAGS = -lSDL2
 
 # CUDA compiler and flags
 NVCC = nvcc

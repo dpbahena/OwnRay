@@ -1,7 +1,6 @@
 #include "cudaCall.h"
 #include "my_cudahelpers.h"
 #include "my_classes.h"
-#include "mycam.hpp"
 #include "renderer.hpp"
 
 #include <iostream>
@@ -75,7 +74,8 @@ namespace rayos {
         int i = threadIdx.x + blockIdx.x * blockDim.x;
         int j = threadIdx.y + blockIdx.y * blockDim.y;
         int idx = width * j + i;
-        // if (i == 0 && j == 0)
+        if (i == 0 && j == 0)
+            (*camera)->update();
         //     printf("samples: %d\t", samples);
         if (idx >= (width * height)) return;
         vec3 color = vec3(0.0f, 0.0f, 0.0f);
@@ -154,7 +154,7 @@ namespace rayos {
         checkCudaErrors(cudaDeviceSynchronize() );
 
         
-        // (*d_camera)->update();
+        
 
 
         clock_t start, stop;
@@ -193,9 +193,10 @@ namespace rayos {
         freeWorld<<<1, 1>>>(d_list, d_world, d_camera);
         cudaFree(colorBuffer);
         
-        // cudaFree(d_list);
-        // cudaFree(d_world);
+        cudaFree(d_list);
+        cudaFree(d_world);
         cudaFree(d_states);
+        cudaFree(d_camera);
         // cudaFree(r_state);
 
     }

@@ -3,7 +3,6 @@
 #include "window.hpp"
 #include "renderer.hpp"
 #include "cudaCall.h"
-#include "mycam.hpp"
 
 
 
@@ -25,9 +24,8 @@ namespace rayos {
     private:
 
     Window window{"by Dario", WIDTH, HEIGHT};
-    // Renderer renderer{window};
     CudaCall rayTracer{window};
-    // MyCam camera{WIDTH, HEIGHT};
+   
     
     Extent2D extent;
 
