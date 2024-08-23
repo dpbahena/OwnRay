@@ -49,7 +49,7 @@ namespace rayos {
         
         while (window.windowIsOpen()){
 
-            rayTracer.cudaCall(window.getExtent().width, window.getExtent().height);
+            rayTracer.cudaCall(window.getExtent().width, window.getExtent().height, samples, depth);
             
             // data.samples    = camera.samples_per_pixel;
             // data.scale      = camera.sample_scale;
@@ -57,8 +57,7 @@ namespace rayos {
             
             processInput();
 
-            // SDL_WaitEvent;
-            // SDL_Delay(2000);
+            // SDL_Delay(10000);
 
             // break;
             
@@ -88,6 +87,7 @@ namespace rayos {
                     
                     case SDLK_SPACE:
                         
+                        
                         break;
                     case SDLK_PAGEUP:
                        
@@ -107,13 +107,25 @@ namespace rayos {
                         break;
                     case SDLK_i:
                         break;
+                    case SDLK_KP_7:
+                        samples -= 1;
+                        break;
                     case SDLK_KP_8:
+                        samples = 50;
+                        break;
+                    case SDLK_KP_9:
+                        samples += 1;
                         break;
                     case SDLK_KP_2:
                         break;
                     case SDLK_KP_4:
+                        depth -= 1;
+                        break;
+                    case SDLK_KP_5:
+                        depth = 10;
                         break;
                     case SDLK_KP_6:
+                        depth += 1;
                         break;
                     case SDLK_KP_D:
                         break;
@@ -130,14 +142,10 @@ namespace rayos {
                     case SDLK_0:
                         break;
                     case SDLK_EQUALS:
-                        // camera.samples_per_pixel += 1;
-                        // camera.update();
                         
                         break;
                     case SDLK_MINUS:
-                        // camera.samples_per_pixel -= 1;
-                        // camera.update();
-
+                        
                         break;
                   
                     default:

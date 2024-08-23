@@ -24,7 +24,7 @@ namespace rayos {
                 return max - min;
             }
             __device__ 
-            bool constains(float x) const {
+            bool contains(float x) const {
                 return min <= x && x <= max;
             }
             __device__
@@ -172,8 +172,9 @@ namespace rayos {
             vec3 pixel00_loc;
             vec3 pixel_delta_u;
             vec3 pixel_delta_v;
-            int samples_per_pixel           = 100;
+            int samples_per_pixel           = 50;
             float sample_scale;
+            int depth                       = 5;
 
         __device__
         void update(){

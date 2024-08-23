@@ -28,6 +28,8 @@ namespace rayos {
    
     
     Extent2D extent;
+    int samples = 50;
+    int depth = 10;
 
 
     

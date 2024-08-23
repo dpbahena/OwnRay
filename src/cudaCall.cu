@@ -43,50 +43,34 @@ namespace rayos {
     }
 
 
-    __global__ void createWorld(/* sphere** d_sphere, */ hittable** list, hittable** world, MyCam** camera, int width, int height){
-        if (threadIdx.x == 0 && blockIdx.x == 0){
+    __global__ void createWorld(hittable** list, hittable** world, MyCam** camera, int width, int height, int samples, int depth){
+        // if (threadIdx.x == 0 && blockIdx.x == 0){
 
             *(list)     = new sphere(vec3(0.0f, 0.0f, -1.0f), 0.5f);
             *(list+1)   = new sphere(vec3(0.0f, -100.5f, -1.0f), 100.0f);
             *world      = new hittable_list(list, 2);  // the list has 2 spheres
-            *camera     = new MyCam(width, height);        
+            *camera     = new MyCam(width, height);  
+            (*camera)->samples_per_pixel = samples;
+            (*camera)->depth = depth;
+            (*camera)->update();      
             
-        }
+        // }
     }
 
-    __global__ void render_init(int max_x, int max_y, unsigned int seed, curandState *rand_state) {
-        // int i = threadIdx.x + blockIdx.x * blockDim.x;
-        // int j = threadIdx.y + blockIdx.y * blockDim.y;
-        // if((i >= max_x) || (j >= max_y)) return;
-        // int pixel_index = j*max_x + i;
-
-        // Original: Each thread gets same seed, a different sequence number, no offset
-        // curand_init(1984, pixel_index, 0, &rand_state[pixel_index]);
-        // BUGFIX, see Issue#2: Each thread gets different seed, same sequence for
-        // performance improvement of about 2x!
-        // curand_init(1984+pixel_index, 0, 0, &rand_state[pixel_index]);
-
-        int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        curand_init(seed, idx, 0, &rand_state[idx]);
-    }
+    
 
     __global__ void render_kernel(uint32_t* buffer, int width, int height, MyCam** camera, hittable** world, curandState_t* states){
         int i = threadIdx.x + blockIdx.x * blockDim.x;
         int j = threadIdx.y + blockIdx.y * blockDim.y;
         int idx = width * j + i;
-        if (i == 0 && j == 0)
-            (*camera)->update();
-        //     printf("samples: %d\t", samples);
+       
         if (idx >= (width * height)) return;
         vec3 color = vec3(0.0f, 0.0f, 0.0f);
         for (int x = 0; x < (*camera)->samples_per_pixel; x++){
             ray r = (*camera)->get_ray(i, j, states);
-            color += ray_color(r, world, states, i, j);
-        }
+            color += ray_color(r, world, (*camera)->depth, states, i, j);
 
-        // auto pixel_center = pixel00 + (static_cast<float>(i) * delta_u) + (static_cast<float>(j) * delta_v);
-        // auto ray_direction = pixel_center - cameraCenter;
-        // ray r(cameraCenter, ray_direction);
+        }
 
         // vec3 color = ray_color(r, world);
         color *= (*camera)->sample_scale;
@@ -96,7 +80,6 @@ namespace rayos {
 
 
     __global__ void freeWorld(hittable** list, hittable** world, MyCam** camera){
-        // delete buffer;
         delete *(list);
         delete *(list + 1);
         delete *world;
@@ -105,7 +88,7 @@ namespace rayos {
     }
 
 
-    void CudaCall::cudaCall(int width, int height)
+    void CudaCall::cudaCall(int width, int height, int samples, int depth)
     {
         
         Renderer renderer{window};
@@ -123,7 +106,7 @@ namespace rayos {
         checkCudaErrors(cudaMalloc((void**)&d_camera, sizeof(MyCam*) ));
 
        
-        createWorld<<<1, 1>>>(d_list, d_world, d_camera, width, height);
+        createWorld<<<1, 1>>>(d_list, d_world, d_camera, width, height, samples, depth);
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize() );
 
@@ -158,7 +141,7 @@ namespace rayos {
         checkCudaErrors(cudaDeviceSynchronize() );
         stop = clock();
         double timer_seconds = ((double)(stop - start)) / CLOCKS_PER_SEC;
-        std::cerr << "took " << timer_seconds << " seconds.\n";
+        std::cerr << "took " << timer_seconds << " seconds with " << samples << " samples and depth of " << depth << "\n";
 
 
         renderer.render(colorBuffer);

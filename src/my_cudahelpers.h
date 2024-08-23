@@ -149,11 +149,11 @@ namespace rayos {
    
 
     __device__  __forceinline__
-    vec3 ray_color(const ray& r, hittable** world, curandState_t* states, int &i, int &j){
+    vec3 ray_color(const ray& r, hittable** world, int depth, curandState_t* states, int &i, int &j){
         
         ray current_ray = r;
         vec3 attenuation = vec3(1.0f, 1.0f, 1.0f);
-        for(int k = 0; k < 50; k++){
+        for(int k = 0; k < depth; k++){
             hit_record rec;
             if ((*world)->hit(current_ray, interval(0.001f, FLT_MAX), rec)){
                 // auto direction = random_on_hemisphere(states, i, j, rec.normal);
