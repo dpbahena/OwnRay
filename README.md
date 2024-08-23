@@ -25,3 +25,7 @@ combine both my approach and JoeAllan
 # Chapter 8. Antialiasing
 ## Camera class as pointer
 ![Screenshot of the project](sampleImages/chap7.png)
+
+# Chapter 9. Recursion vs Iteration
+## Introduction to diffuse material 
+![Screenshot of the project](sampleImages/chap9.png)

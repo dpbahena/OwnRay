@@ -7,12 +7,7 @@
 
 namespace rayos {
 
-    __device__  __forceinline__
-    vec3 ray_color(const ray& r);
-    __device__  __forceinline__
-    vec3 ray_color(const ray& r, hittable** world);
-    __device__  __forceinline__
-    float hit_sphere(const point& center, float radius, const ray& r);
+    
     __device__   __forceinline__
     uint32_t colorToUint32_t(glm::vec3& c);
     __device__
@@ -114,21 +109,29 @@ namespace rayos {
         
     }
 
-
+    __device__  __forceinline__
+    float linear_to_gamma(float linear_component){
+        if (linear_component > 0.0f){
+            return sqrt(linear_component);
+        }
+        return 0;
+    }
 
     __device__  __forceinline__
     uint32_t colorToUint32_t(glm::vec3& c)
     {
+       
+        
+
         /* Ensure that the input values within the range [0.0, 1.0] */
         c.x = (c.x < 0.0f) ? 0.0f : ((c.x > 1.0f) ? 1.0f : c.x);  // red
         c.y = (c.y < 0.0f) ? 0.0f : ((c.y > 1.0f) ? 1.0f : c.y);  // green
-        c.z = (c.z < 0.0f) ? 0.0f : ((c.z > 1.0f) ? 1.0f : c.z);  // blue
+        c.z = (c.z < 0.0f) ? 0.0f : ((c.z > 1.0f) ? 1.0f : c.z);  // blue   
 
-       
         // Apply a linear to gamma transform for gamma 2
-        // c.x = linear_to_gamma(c.x);
-        // c.y = linear_to_gamma(c.y);
-        // c.z = linear_to_gamma(c.z);
+        c.x = linear_to_gamma(c.x);
+        c.y = linear_to_gamma(c.y);
+        c.z = linear_to_gamma(c.z);             
 
         // convert to integers
         uint32_t ri = static_cast<uint32_t>(c.x * 255.0);
@@ -141,31 +144,9 @@ namespace rayos {
         return color;
     }
 
-    __device__ __forceinline__
-    vec3 ray_color(const ray& r){
-        float t = hit_sphere(point(0.0f, 0.0f, -1.0f), 0.5f, r);
-        if (t > 0.0f){
-            vec3 normal = glm::normalize(r.at(t) - vec3(0.0f, 0.0f, -1.0f));
-            return 0.5f * vec3(normal.x + 1.0f, normal.y + 1.0f, normal.z + 1.0f);
-        }
-        vec3 unit_vector = glm::normalize(r.direction());
-        float a = 0.5f * (unit_vector.y + 1.0f);
-        return (1.0f - a) * vec3(1.0f, 1.0f, 1.0f) + a * vec3(0.5f, 0.7f, 1.0f);
-    }
+   
 
-    __device__ __forceinline__
-    float hit_sphere(const point& center, float radius, const ray& r) {
-        vec3 oc = center - r.origin();
-        float a = glm::dot(r.direction(), r.direction());
-        float h = glm::dot(r.direction(), oc);
-        float c = glm::dot(oc, oc) - radius * radius;
-        float discriminant = h * h -  a * c;
-        if (discriminant < 0 ) {
-            return -1.0f;
-        } else {
-             return (h - sqrt(discriminant) ) / a;
-        }
-    }
+   
 
     __device__  __forceinline__
     vec3 ray_color(const ray& r, hittable** world, curandState_t* states, int &i, int &j){
@@ -175,9 +156,10 @@ namespace rayos {
         for(int k = 0; k < 50; k++){
             hit_record rec;
             if ((*world)->hit(current_ray, interval(0.001f, FLT_MAX), rec)){
-                auto direction = random_on_hemisphere(states, i, j, rec.normal);
-                attenuation *= 0.5f;
+                // auto direction = random_on_hemisphere(states, i, j, rec.normal);
+                auto direction = random_unit_vector(states, i, j) + rec.normal;
                 current_ray = ray(rec.p, direction);
+                attenuation *= 0.5f;
             } else {
                 vec3 unit_vector = glm::normalize(r.direction());
                 float a = 0.5f * (unit_vector.y + 1.0f);
@@ -191,6 +173,7 @@ namespace rayos {
 
 
     }
+
     // __device__
     // ray get_ray(int& i, int& j, vec3& pixel00_loc, vec3& cameraCenter, vec3& delta_u, vec3& delta_v, curandState_t* states) {
     //     /* construct a ray originating from the origin and directed at randomly sampled point around the pixel location i, j */
