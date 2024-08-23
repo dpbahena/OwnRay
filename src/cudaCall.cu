@@ -1,6 +1,7 @@
 #include "cudaCall.h"
 #include "my_cudahelpers.h"
 #include "my_classes.h"
+#include "mycam.hpp"
 #include "renderer.hpp"
 
 #include <iostream>
@@ -43,14 +44,13 @@ namespace rayos {
     }
 
 
-    __global__ void createWorld(/* sphere** d_sphere, */ hittable** list, hittable** world){
+    __global__ void createWorld(/* sphere** d_sphere, */ hittable** list, hittable** world, MyCam** camera, int width, int height){
         if (threadIdx.x == 0 && blockIdx.x == 0){
 
             *(list)     = new sphere(vec3(0.0f, 0.0f, -1.0f), 0.5f);
             *(list+1)   = new sphere(vec3(0.0f, -100.5f, -1.0f), 100.0f);
             *world      = new hittable_list(list, 2);  // the list has 2 spheres
-            
-            
+            *camera     = new MyCam(width, height);        
             
         }
     }
@@ -71,7 +71,7 @@ namespace rayos {
         curand_init(seed, idx, 0, &rand_state[idx]);
     }
 
-    __global__ void render_kernel(uint32_t* buffer, int width, int height, vec3 cameraCenter, vec3 delta_u, vec3 delta_v, vec3 pixel00, int samples, float scale, hittable** world, curandState_t* states){
+    __global__ void render_kernel(uint32_t* buffer, int width, int height, MyCam** camera, hittable** world, curandState_t* states){
         int i = threadIdx.x + blockIdx.x * blockDim.x;
         int j = threadIdx.y + blockIdx.y * blockDim.y;
         int idx = width * j + i;
@@ -79,8 +79,8 @@ namespace rayos {
         //     printf("samples: %d\t", samples);
         if (idx >= (width * height)) return;
         vec3 color = vec3(0.0f, 0.0f, 0.0f);
-        for (int x = 0; x < samples; x++){
-            ray r = get_ray(i, j, pixel00, cameraCenter, delta_u, delta_v, states);
+        for (int x = 0; x < (*camera)->samples_per_pixel; x++){
+            ray r = (*camera)->get_ray(i, j, states);
             color += ray_color(r, world);
         }
 
@@ -89,7 +89,7 @@ namespace rayos {
         // ray r(cameraCenter, ray_direction);
 
         // vec3 color = ray_color(r, world);
-        color *= scale;
+        color *= (*camera)->sample_scale;
         buffer[idx] = colorToUint32_t(color);
         
     }
@@ -121,15 +121,17 @@ namespace rayos {
         
     }
 
-    __global__ void freeWorld(hittable** list, hittable** world){
+    __global__ void freeWorld(hittable** list, hittable** world, MyCam** camera){
         // delete buffer;
         delete *(list);
         delete *(list + 1);
         delete *world;
+        delete *camera;
+
     }
 
 
-    void CudaCall::cudaCall(int width, int height, Data& data)
+    void CudaCall::cudaCall(int width, int height)
     {
         
         Renderer renderer{window};
@@ -137,20 +139,22 @@ namespace rayos {
         checkCudaErrors(cudaMallocManaged(&colorBuffer, width * height * sizeof(uint32_t)));
 
         
-        // Create world memory
+        // Create world  (create pointers to different classes)
 
         hittable** d_list;
         checkCudaErrors(cudaMalloc((void**)&d_list, 2 * sizeof(hittable*)) );
         hittable** d_world;
         checkCudaErrors(cudaMalloc((void**)&d_world, sizeof(hittable*) ));
+        MyCam** d_camera;
+        checkCudaErrors(cudaMalloc((void**)&d_camera, sizeof(MyCam*) ));
 
        
-        createWorld<<<1, 1>>>(d_list, d_world);
+        createWorld<<<1, 1>>>(d_list, d_world, d_camera, width, height);
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize() );
 
         
-
+        // (*d_camera)->update();
 
 
         clock_t start, stop;
@@ -174,7 +178,7 @@ namespace rayos {
         checkCudaErrors(cudaDeviceSynchronize() );
 
 
-        render_kernel<<<gridSize, blockSize>>>(colorBuffer, width, height, data.center, data.delta_u, data.delta_v, data.pixel000, data.samples, data.scale, d_world, d_states);
+        render_kernel<<<gridSize, blockSize>>>(colorBuffer, width, height, d_camera, d_world, d_states);
         // render_kernel2<<<gridSize, blockSize>>>(colorBuffer, width, height, data.center, data.delta_u, data.delta_v, data.pixel000, data.samples, data.scale, d_world, r_state);
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize() );
@@ -186,11 +190,11 @@ namespace rayos {
         renderer.render(colorBuffer);
 
 
-        freeWorld<<<1, 1>>>(d_list, d_world);
+        freeWorld<<<1, 1>>>(d_list, d_world, d_camera);
         cudaFree(colorBuffer);
         
-        cudaFree(d_list);
-        cudaFree(d_world);
+        // cudaFree(d_list);
+        // cudaFree(d_world);
         cudaFree(d_states);
         // cudaFree(r_state);
 

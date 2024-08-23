@@ -27,7 +27,7 @@ namespace rayos {
     Window window{"by Dario", WIDTH, HEIGHT};
     // Renderer renderer{window};
     CudaCall rayTracer{window};
-    MyCam camera{WIDTH, HEIGHT};
+    // MyCam camera{WIDTH, HEIGHT};
     
     Extent2D extent;
 

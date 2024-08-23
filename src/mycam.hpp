@@ -3,14 +3,19 @@
 
 
 #include "definitions.h"
+// #include "my_classes.h"
+#include "my_cudahelpers.h"
 
 
 namespace rayos{
 
     class MyCam {
         public:
+            __device__
             MyCam(int width, int heigh) : image_width(width), image_height(heigh){
                 aspectRatio = image_width / static_cast<float>(image_height);
+
+                
             }
 
             point camera_center             = vec3(0.0f, 0.0f, 0.0f);
@@ -38,15 +43,21 @@ namespace rayos{
             pixel00_loc = viewport_upper_left + 0.5f * (pixel_delta_u + pixel_delta_v);
 
             sample_scale = 1.0f / static_cast<float>(samples_per_pixel);
+        }
 
+        __device__
+        ray get_ray(int& i, int& j, curandState_t* states) {
+            /* construct a ray originating from the origin and directed at randomly sampled point around the pixel location i, j */
+            auto offset = sample_square(states, i, j);
+            auto pixel_sample = pixel00_loc + ((i + offset.x) * pixel_delta_u) + ((j + offset.y) * pixel_delta_v);
 
+            auto ray_origin     = camera_center;
+            auto ray_direction  = pixel_sample - ray_origin;
 
-
-
-            
-
+            return ray(ray_origin, ray_direction); 
 
         }
+
 
         private:
             float viewport_height           = 2.0f;
@@ -60,13 +71,8 @@ namespace rayos{
             int image_height;
             float aspectRatio;
 
-            
-            
 
 
-
-            
-        
     };
 }
 
