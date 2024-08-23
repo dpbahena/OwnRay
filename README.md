@@ -22,3 +22,6 @@ combine both my approach and JoeAllan
 ## Introduction of  curandState_t* states in Cuda
 ![Screenshot of the project](sampleImages/chap7.png)
 
+# Chapter 8. Antialiasing
+## Camera class as pointer
+![Screenshot of the project](sampleImages/chap7.png)
