@@ -20,15 +20,15 @@ namespace rayos {
     __device__ 
     float random_float_range(curandState_t* state, float a, float b);
     __device__
-    vec3 random_vector(curandState_t* states,  int i, int j);
+    vec3 random_vector(curandState_t* states,  int& i, int& j);
     __device__
-    vec3 random_vector_in_range(curandState_t* states, int i, int j, double min, double max);
+    vec3 random_vector_in_range(curandState_t* states, int& i, int& j, float min, float max);
      __device__
-    vec3 random_in_unit_sphere(curandState_t* states,  int i, int j);
+    vec3 random_in_unit_sphere(curandState_t* states,  int& i, int& j);
     __device__
-    vec3 random_unit_vector(curandState_t* states,  int i, int j);
+    vec3 random_unit_vector(curandState_t* states,  int& i, int& j);
      __device__
-    vec3 random_on_hemisphere(curandState_t* states, int i, int j, const vec3& normal);
+    vec3 random_on_hemisphere(curandState_t* states, int& i, int& j, const vec3& normal);
 
 
     const interval interval::empty          = interval(+MAXFLOAT, -MAXFLOAT);
@@ -37,7 +37,7 @@ namespace rayos {
 
     __device__
     float random_float(curandState_t* state) {
-        return curand_uniform_double(state);
+        return curand_uniform(state);
     }
 
     __device__ 
@@ -47,36 +47,41 @@ namespace rayos {
     }
 
     __device__
-    vec3 random_vector(curandState_t* states,  int i, int j){
+    vec3 random_vector(curandState_t* states,  int &i, int &j){
         curandState_t x = states[i];
+        curandState_t y = states[j];
         
-        double a = random_float(&x);
-        double b = random_float(&x);
-        double c = random_float(&x); //a * b;
+        float a = random_float(&x);
+        float b = random_float(&y);
+        float c = random_float(&x); 
+        
         states[i] = x; // save value back
+        states[j] = y; // save value back
         return vec3(a, b, c);
 
     }
 
     __device__
-    vec3 random_vector_in_range(curandState_t* states, int i, int j,  double min, double max){
+    vec3 random_vector_in_range(curandState_t* states, int &i, int &j,  float min, float max){
         curandState_t x = states[i];
-        double a = random_float_range(&x, min, max);
-        double b = random_float_range(&x, min, max);
-        double c = random_float_range(&x, min, max);
+        curandState_t y = states[j];
+        float a = random_float_range(&x, min, max);
+        float b = random_float_range(&y, min, max);
+        float c = random_float_range(&x, min, max);
         states[i] = x; // save value back
+        states[j] = y; // save value back
         return vec3(a, b, c);
     }
 
     __device__
-    vec3 random_unit_vector(curandState_t* states,  int i, int j) {
+    vec3 random_unit_vector(curandState_t* states,  int &i, int &j) {
 
         auto p = random_in_unit_sphere(states, i, j);
         return glm::normalize(p);
     }
 
     __device__
-    vec3 random_in_unit_sphere(curandState_t* states,  int i, int j) {
+    vec3 random_in_unit_sphere(curandState_t* states,  int &i, int &j) {
         while (true) {
             vec3 p = random_vector_in_range(states, i, j,  -1.0f,1.0f);
             if (glm::dot(p,p) < 1.0f){
@@ -86,7 +91,7 @@ namespace rayos {
     }
 
     __device__
-    vec3 random_on_hemisphere(curandState_t* states, int i, int j, const vec3& normal) {
+    vec3 random_on_hemisphere(curandState_t* states, int &i, int &j, const vec3& normal) {
         vec3 on_unit_sphere = random_unit_vector(states, i, j);
         if (glm::dot(on_unit_sphere, normal) > 0.0) // In the same hemisphere as the normal
             return on_unit_sphere;
@@ -163,15 +168,26 @@ namespace rayos {
     }
 
     __device__  __forceinline__
-    vec3 ray_color(const ray& r, hittable** world){
-        hit_record rec;
-        vec3 color = vec3(1.0f, 1.0f, 1.0f);
-        if ((*world)->hit(r, interval(0, MAXFLOAT), rec)){
-            return 0.5f * (rec.normal  + color); 
+    vec3 ray_color(const ray& r, hittable** world, curandState_t* states, int &i, int &j){
+        
+        ray current_ray = r;
+        vec3 attenuation = vec3(1.0f, 1.0f, 1.0f);
+        for(int k = 0; k < 50; k++){
+            hit_record rec;
+            if ((*world)->hit(current_ray, interval(0.001f, FLT_MAX), rec)){
+                auto direction = random_on_hemisphere(states, i, j, rec.normal);
+                attenuation *= 0.5f;
+                current_ray = ray(rec.p, direction);
+            } else {
+                vec3 unit_vector = glm::normalize(r.direction());
+                float a = 0.5f * (unit_vector.y + 1.0f);
+                auto background = (1.0f - a) * vec3(1.0f, 1.0f, 1.0f) + a * vec3(0.5f, 0.7f, 1.0f);
+                return attenuation * background;
+            }
         }
-        vec3 unit_vector = glm::normalize(r.direction());
-        float a = 0.5f * (unit_vector.y + 1.0f);
-        return (1.0f - a) * vec3(1.0f, 1.0f, 1.0f) + a * vec3(0.5f, 0.7f, 1.0f);
+
+        return attenuation;
+        
 
 
     }
