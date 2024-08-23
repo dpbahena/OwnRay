@@ -94,32 +94,6 @@ namespace rayos {
         
     }
 
-    __global__ void render_kernel2(uint32_t* buffer, int width, int height, vec3 cameraCenter, vec3 delta_u, vec3 delta_v, vec3 pixel00, int samples, float scale, hittable** world, curandState* rand_state){
-        int i = threadIdx.x + blockIdx.x * blockDim.x;
-        int j = threadIdx.y + blockIdx.y * blockDim.y;
-        int idx = width * j + i;
-        curandState local_rand_state = rand_state[idx];
-        if (i == 0 && j == 0)
-            printf("samples: %d\t", samples);
-        if (idx >= (width * height)) return;
-        vec3 color = vec3(0.0f, 0.0f, 0.0f);
-        for (int x = 0; x < samples; x++){
-            float u = float(i + curand_uniform(&local_rand_state)) / float(width);
-            float v = float(j + curand_uniform(&local_rand_state)) / float(height);
-            ray r = get_ray2(i, j, pixel00, cameraCenter, delta_u, delta_v, u, v);
-            color += ray_color(r, world);
-            rand_state[idx] = local_rand_state; // save back the value
-        }
-
-        // auto pixel_center = pixel00 + (static_cast<float>(i) * delta_u) + (static_cast<float>(j) * delta_v);
-        // auto ray_direction = pixel_center - cameraCenter;
-        // ray r(cameraCenter, ray_direction);
-
-        // vec3 color = ray_color(r, world);
-        color *= scale;
-        buffer[idx] = colorToUint32_t(color);
-        
-    }
 
     __global__ void freeWorld(hittable** list, hittable** world, MyCam** camera){
         // delete buffer;
