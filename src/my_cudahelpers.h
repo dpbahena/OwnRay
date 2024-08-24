@@ -29,6 +29,8 @@ namespace rayos {
     vec3 random_unit_vector(curandState_t* states,  int i, int j);
      __device__
     vec3 random_on_hemisphere(curandState_t* states, int i, int j, const vec3& normal);
+    __device__  __forceinline__
+    float linear_to_gamma(float linear_component);
 
 
     const interval interval::empty          = interval(+MAXFLOAT, -MAXFLOAT);
@@ -121,9 +123,9 @@ namespace rayos {
 
        
         // Apply a linear to gamma transform for gamma 2
-        // c.x = linear_to_gamma(c.x);
-        // c.y = linear_to_gamma(c.y);
-        // c.z = linear_to_gamma(c.z);
+        c.x = linear_to_gamma(c.x);
+        c.y = linear_to_gamma(c.y);
+        c.z = linear_to_gamma(c.z);
 
         // convert to integers
         uint32_t ri = static_cast<uint32_t>(c.x * 255.0);
@@ -160,6 +162,14 @@ namespace rayos {
         } else {
              return (h - sqrt(discriminant) ) / a;
         }
+    }
+
+    __device__  __forceinline__
+    float linear_to_gamma(float linear_component){
+        if (linear_component > 0.0f){
+            return sqrt(linear_component);
+        }
+        return 0;
     }
 
     __device__  __forceinline__
