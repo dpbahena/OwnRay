@@ -10,7 +10,7 @@ namespace rayos {
     __device__  __forceinline__
     vec3 ray_color(const ray& r);
     __device__  __forceinline__
-    vec3 ray_color(const ray& r, hittable** world, curandState_t *states, int& i, int& j);
+    vec3 ray_color(const ray& r, hittable** world, int& depth, curandState_t *states, int& i, int& j);
     __device__  __forceinline__
     float hit_sphere(const point& center, float radius, const ray& r);
     __device__   __forceinline__
@@ -173,10 +173,10 @@ namespace rayos {
     }
 
     __device__  __forceinline__
-    vec3 ray_color(const ray& r, hittable** world, curandState_t* states, int& i, int& j){
+    vec3 ray_color(const ray& r, hittable** world, int& depth, curandState_t* states, int& i, int& j){
         vec3 attenuation = vec3(1.0f, 1.0f, 1.0f);
         ray current_ray = r;
-        for(int k = 0; k < 10; k++){
+        for(int k = 0; k < depth; k++){
             hit_record rec;
             
             if ((*world)->hit(current_ray, interval(0.001, MAXFLOAT), rec)){

@@ -197,7 +197,7 @@ namespace rayos {
         }
 
         __device__
-        ray get_ray(int& i, int& j, curandState_t* states) {
+        ray get_ray(int& i, int& j, curandState_t* states) const {
             /* construct a ray originating from the origin and directed at randomly sampled point around the pixel location i, j */
             auto offset = sample_square(states, i, j);
             auto pixel_sample = pixel00_loc + ((i + offset.x) * pixel_delta_u) + ((j + offset.y) * pixel_delta_v);

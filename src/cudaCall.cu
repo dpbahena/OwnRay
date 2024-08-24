@@ -81,7 +81,7 @@ namespace rayos {
         vec3 color = vec3(0.0f, 0.0f, 0.0f);
         for (int x = 0; x < (*camera)->samples_per_pixel; x++){
             ray r = (*camera)->get_ray(i, j, states);
-            color += ray_color(r, world, states, i, j);
+            color += ray_color(r, world, (*camera)->max_depth, states, i, j);
         }
 
         // auto pixel_center = pixel00 + (static_cast<float>(i) * delta_u) + (static_cast<float>(j) * delta_v);
@@ -133,7 +133,7 @@ namespace rayos {
 
         clock_t start, stop;
         start = clock();
-        int threads = 32;
+        int threads = 16;
         dim3 blockSize(threads, threads);
         int blocks_x = (width + blockSize.x - 1) / blockSize.x;
         int blocks_y = (height + blockSize.y - 1) / blockSize.y;
