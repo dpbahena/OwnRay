@@ -43,13 +43,15 @@ namespace rayos {
     }
 
 
-    __global__ void createWorld(/* sphere** d_sphere, */ hittable** list, hittable** world, MyCam** camera, int width, int height){
+    __global__ void createWorld(/* sphere** d_sphere, */ hittable** list, hittable** world, MyCam** camera, int width, int height, int samples, int depth){
         
 
             *(list)     = new sphere(vec3(0.0f, 0.0f, -1.0f), 0.5f);
             *(list+1)   = new sphere(vec3(0.0f, -100.5f, -1.0f), 100.0f);
             *world      = new hittable_list(list, 2);  // the list has 2 spheres
             *camera     = new MyCam(width, height);  
+            (*camera)->samples_per_pixel = samples;
+            (*camera)->max_depth = depth;
             (*camera)->update();      
             
         
@@ -103,7 +105,7 @@ namespace rayos {
     }
 
 
-    void CudaCall::cudaCall(int width, int height)
+    void CudaCall::cudaCall(int width, int height, int samples, int depth, bool info)
     {
         
         Renderer renderer{window};
@@ -121,7 +123,7 @@ namespace rayos {
         checkCudaErrors(cudaMalloc((void**)&d_camera, sizeof(MyCam*) ));
 
        
-        createWorld<<<1, 1>>>(d_list, d_world, d_camera, width, height);
+        createWorld<<<1, 1>>>(d_list, d_world, d_camera, width, height, samples, depth);
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize() );
 
@@ -156,7 +158,8 @@ namespace rayos {
         checkCudaErrors(cudaDeviceSynchronize() );
         stop = clock();
         double timer_seconds = ((double)(stop - start)) / CLOCKS_PER_SEC;
-        std::cerr << "took " << timer_seconds << " seconds.\n";
+        if(info)
+            std::cerr << "took " << timer_seconds << " seconds at " << samples << " samples and " << depth << " ray bounces(depth).\n";
 
 
         renderer.render(colorBuffer);

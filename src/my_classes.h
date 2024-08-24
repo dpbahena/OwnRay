@@ -172,7 +172,8 @@ namespace rayos {
             vec3 pixel00_loc;
             vec3 pixel_delta_u;
             vec3 pixel_delta_v;
-            int samples_per_pixel           = 100;
+            int samples_per_pixel           = 50;
+            int max_depth                   = 10;
             float sample_scale;
 
         __device__
