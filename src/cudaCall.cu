@@ -44,14 +44,15 @@ namespace rayos {
 
 
     __global__ void createWorld(/* sphere** d_sphere, */ hittable** list, hittable** world, MyCam** camera, int width, int height){
-        if (threadIdx.x == 0 && blockIdx.x == 0){
+        
 
             *(list)     = new sphere(vec3(0.0f, 0.0f, -1.0f), 0.5f);
             *(list+1)   = new sphere(vec3(0.0f, -100.5f, -1.0f), 100.0f);
             *world      = new hittable_list(list, 2);  // the list has 2 spheres
-            *camera     = new MyCam(width, height);        
+            *camera     = new MyCam(width, height);  
+            (*camera)->update();      
             
-        }
+        
     }
 
     __global__ void render_init(int max_x, int max_y, unsigned int seed, curandState *rand_state) {
@@ -74,9 +75,6 @@ namespace rayos {
         int i = threadIdx.x + blockIdx.x * blockDim.x;
         int j = threadIdx.y + blockIdx.y * blockDim.y;
         int idx = width * j + i;
-        if (i == 0 && j == 0)
-            (*camera)->update();
-        //     printf("samples: %d\t", samples);
         if (idx >= (width * height)) return;
         vec3 color = vec3(0.0f, 0.0f, 0.0f);
         for (int x = 0; x < (*camera)->samples_per_pixel; x++){
