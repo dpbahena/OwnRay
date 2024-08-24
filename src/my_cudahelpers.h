@@ -10,7 +10,7 @@ namespace rayos {
     __device__  __forceinline__
     vec3 ray_color(const ray& r);
     __device__  __forceinline__
-    vec3 ray_color(const ray& r, hittable** world);
+    vec3 ray_color(const ray& r, hittable** world, curandState_t *states, int& i, int& j);
     __device__  __forceinline__
     float hit_sphere(const point& center, float radius, const ray& r);
     __device__   __forceinline__
@@ -163,18 +163,29 @@ namespace rayos {
     }
 
     __device__  __forceinline__
-    vec3 ray_color(const ray& r, hittable** world){
-        hit_record rec;
-        vec3 color = vec3(1.0f, 1.0f, 1.0f);
-        if ((*world)->hit(r, interval(0, MAXFLOAT), rec)){
-            return 0.5f * (rec.normal  + color); 
+    vec3 ray_color(const ray& r, hittable** world, curandState_t* states, int& i, int& j){
+        vec3 attenuation = vec3(1.0f, 1.0f, 1.0f);
+        ray current_ray = r;
+        for(int k = 0; k < 10; k++){
+            hit_record rec;
+            
+            if ((*world)->hit(current_ray, interval(0.001, MAXFLOAT), rec)){
+                // vec3 direction = random_on_hemisphere(states, i, j, rec.normal);
+                vec3 direction = random_unit_vector(states, i, j) + rec.normal;
+                current_ray = ray(rec.p, direction);
+                attenuation *= 0.5f ; 
+            } else {
+                vec3 unit_vector = glm::normalize(r.direction());
+                float a = 0.5f * (unit_vector.y + 1.0f);
+                vec3 background =  (1.0f - a) * vec3(1.0f, 1.0f, 1.0f) + a * vec3(0.5f, 0.7f, 1.0f);
+                return attenuation * background;
+            }
         }
-        vec3 unit_vector = glm::normalize(r.direction());
-        float a = 0.5f * (unit_vector.y + 1.0f);
-        return (1.0f - a) * vec3(1.0f, 1.0f, 1.0f) + a * vec3(0.5f, 0.7f, 1.0f);
 
+        return attenuation;
 
     }
+    
     // __device__
     // ray get_ray(int& i, int& j, vec3& pixel00_loc, vec3& cameraCenter, vec3& delta_u, vec3& delta_v, curandState_t* states) {
     //     /* construct a ray originating from the origin and directed at randomly sampled point around the pixel location i, j */

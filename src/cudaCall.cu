@@ -79,7 +79,7 @@ namespace rayos {
         vec3 color = vec3(0.0f, 0.0f, 0.0f);
         for (int x = 0; x < (*camera)->samples_per_pixel; x++){
             ray r = (*camera)->get_ray(i, j, states);
-            color += ray_color(r, world);
+            color += ray_color(r, world, states, i, j);
         }
 
         // auto pixel_center = pixel00 + (static_cast<float>(i) * delta_u) + (static_cast<float>(j) * delta_v);
