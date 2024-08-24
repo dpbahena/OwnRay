@@ -13,7 +13,7 @@ namespace rayos {
         ~CudaCall();
 
         
-        void cudaCall(int width, int height, int samples, int depth);
+        void cudaCall(int width, int height, int samples, int depth, bool info_flag);
         
         
        

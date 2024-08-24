@@ -49,7 +49,7 @@ namespace rayos {
         
         while (window.windowIsOpen()){
 
-            rayTracer.cudaCall(window.getExtent().width, window.getExtent().height, samples, depth);
+            rayTracer.cudaCall(window.getExtent().width, window.getExtent().height, samples, depth, info_flag );
             
             // data.samples    = camera.samples_per_pixel;
             // data.scale      = camera.sample_scale;
@@ -86,7 +86,7 @@ namespace rayos {
                         break;
                     
                     case SDLK_SPACE:
-                        
+                        info_flag ^= true; // show info or not
                         
                         break;
                     case SDLK_PAGEUP:

@@ -88,7 +88,7 @@ namespace rayos {
     }
 
 
-    void CudaCall::cudaCall(int width, int height, int samples, int depth)
+    void CudaCall::cudaCall(int width, int height, int samples, int depth, bool info_flag)
     {
         
         Renderer renderer{window};
@@ -141,7 +141,8 @@ namespace rayos {
         checkCudaErrors(cudaDeviceSynchronize() );
         stop = clock();
         double timer_seconds = ((double)(stop - start)) / CLOCKS_PER_SEC;
-        std::cerr << "took " << timer_seconds << " seconds with " << samples << " samples and depth of " << depth << "\n";
+        if (info_flag)
+            std::cerr << "took " << timer_seconds << " seconds with " << samples << " samples and depth of " << depth << "\n";
 
 
         renderer.render(colorBuffer);
