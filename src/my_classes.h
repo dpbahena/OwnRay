@@ -6,9 +6,13 @@
 
 namespace rayos {
 
-
+    __device__
+    vec3 random_unit_vector(curandState_t* states,  int& i, int& j);
     __device__
     vec3 sample_square(curandState_t* states, int& i, int& j);
+    __device__ bool near_zero(vec3 v);
+    __device__
+    vec3 reflect(const vec3& v, const vec3& n);
 
 
 
@@ -59,6 +63,7 @@ namespace rayos {
         vec3 direction_;
     };
 
+    class material;  // placeholder
 
     class hit_record{
         public:
@@ -66,6 +71,7 @@ namespace rayos {
             vec3 normal;
             float t;
             bool front_face;
+            material* mat_ptr;
 
             __device__ 
             void set_face_normal(const ray&r, const vec3& outward_normal){
@@ -87,7 +93,7 @@ namespace rayos {
     class sphere : public hittable {
         public:
             __device__ 
-            sphere (const point& center, float radius) : center(center), radius(radius) {}
+            sphere (const point& center, float radius, material* mat) : center(center), radius(radius), mat_ptr(mat){}
             __device__ 
             bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
                 vec3 oc = center - r.origin();
@@ -113,9 +119,12 @@ namespace rayos {
                 rec.p = r.at(rec.t);
                 vec3 outward_normal = (rec.p - center) / radius;
                 rec.set_face_normal(r, outward_normal);
+                rec.mat_ptr = mat_ptr;
 
                 return true;
             }
+
+            material* mat_ptr;
 
         private:
             point center;
@@ -225,6 +234,52 @@ namespace rayos {
 
 
     };
+    
+
+    class material {
+        public:
+        __device__
+        virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState_t* states, int i, int j) const = 0;
+    };
+
+    class lambertian : public material {
+        public:
+            __device__
+            lambertian(const vec3& albedo) : albedo(albedo) {}
+            __device__
+            virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState_t* states, int i, int j) const override {
+                vec3 scatter_direction = rec.normal + random_unit_vector(states, i, j);
+                /* Catch if it is degenerate scatter_direction vector (avoids infinites and NaNs) */
+                if (near_zero(scatter_direction))
+                    scatter_direction = rec.normal;
+
+                scattered = ray(rec.p, scatter_direction);
+                attenuation = albedo;
+                return true;
+            }
+        private:
+            vec3 albedo;
+    };
+
+
+    class metal : public material {
+        public:
+            __device__
+            metal(const vec3& albedo) : albedo(albedo) {}
+            __device__
+            virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState_t* states, int i, int j) const override {
+                vec3 reflected = reflect(r_in.direction(), rec.normal);
+                
+                scattered = ray(rec.p, reflected);
+                attenuation = albedo;
+                return true;
+            }
+        private:
+            vec3 albedo;
+    };
+
+
+
 
 
 

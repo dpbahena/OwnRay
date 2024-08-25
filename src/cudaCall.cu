@@ -44,17 +44,19 @@ namespace rayos {
 
 
     __global__ void createWorld(hittable** list, hittable** world, MyCam** camera, int width, int height, int samples, int depth){
-        // if (threadIdx.x == 0 && blockIdx.x == 0){
+        if (threadIdx.x == 0 && blockIdx.x == 0){
 
-            *(list)     = new sphere(vec3(0.0f, 0.0f, -1.0f), 0.5f);
-            *(list+1)   = new sphere(vec3(0.0f, -100.5f, -1.0f), 100.0f);
-            *world      = new hittable_list(list, 2);  // the list has 2 spheres
+            list[0]     = new sphere(vec3(0.0f, 0.0f, -1.0f), 0.5f, new lambertian(vec3(0.1f, 0.2f, 0.5f)));
+            list[1]     = new sphere(vec3(0.0f, -100.5f, -1.0f), 100.0f, new lambertian(vec3(0.8f, 0.8f, 0.0f)));
+            list[2]     = new sphere(vec3(-1.0f, 0.0f, -1.0f), 0.5f, new metal(vec3(0.8f, 0.8f, 0.8f)));
+            list[3]     = new sphere(vec3(1.0f, 0.0f, -1.0f), 0.5f, new metal(vec3(0.8f, 0.6f, 0.2f)));
+            *world      = new hittable_list(list, 4);  // the list has 4 spheres
             *camera     = new MyCam(width, height);  
             (*camera)->samples_per_pixel = samples;
             (*camera)->depth = depth;
             (*camera)->update();      
             
-        // }
+        }
     }
 
     
@@ -80,8 +82,12 @@ namespace rayos {
 
 
     __global__ void freeWorld(hittable** list, hittable** world, MyCam** camera){
-        delete *(list);
-        delete *(list + 1);
+        // delete *(list);
+        // delete *(list + 1);
+        for (int i = 0; i < 4; i++){
+            delete((sphere *)list[i])->mat_ptr;
+            delete list[i];
+        }
         delete *world;
         delete *camera;
 
@@ -99,7 +105,7 @@ namespace rayos {
         // Create world  (create pointers to different classes)
 
         hittable** d_list;
-        checkCudaErrors(cudaMalloc((void**)&d_list, 2 * sizeof(hittable*)) );
+        checkCudaErrors(cudaMalloc((void**)&d_list, 4 * sizeof(hittable*)) );
         hittable** d_world;
         checkCudaErrors(cudaMalloc((void**)&d_world, sizeof(hittable*) ));
         MyCam** d_camera;

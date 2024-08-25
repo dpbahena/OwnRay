@@ -20,8 +20,7 @@ namespace rayos {
     vec3 random_vector_in_range(curandState_t* states, int& i, int& j, float min, float max);
      __device__
     vec3 random_in_unit_sphere(curandState_t* states,  int& i, int& j);
-    __device__
-    vec3 random_unit_vector(curandState_t* states,  int& i, int& j);
+    
      __device__
     vec3 random_on_hemisphere(curandState_t* states, int& i, int& j, const vec3& normal);
 
@@ -29,6 +28,18 @@ namespace rayos {
     const interval interval::empty          = interval(+MAXFLOAT, -MAXFLOAT);
     const interval interval::universe       = interval(-MAXFLOAT, +MAXFLOAT);
 
+
+    __device__
+     bool near_zero(vec3 v)  {
+        // Return true if the vector is close to zero in all dimensions.
+        auto s = 1e-8;
+        return (fabs(v.x) < s) && (fabs(v.y) < s) && (fabs(v.z) < s);
+    }
+
+    __device__
+    vec3 reflect(const vec3& v, const vec3& n) {
+        return v - 2.0f * glm::dot(v,n) * n;
+    }
 
     __device__
     float random_float(curandState_t* state) {
@@ -152,23 +163,29 @@ namespace rayos {
     vec3 ray_color(const ray& r, hittable** world, int depth, curandState_t* states, int &i, int &j){
         
         ray current_ray = r;
-        vec3 attenuation = vec3(1.0f, 1.0f, 1.0f);
+        vec3 current_attenuation = vec3(1.0f, 1.0f, 1.0f);
         for(int k = 0; k < depth; k++){
             hit_record rec;
             if ((*world)->hit(current_ray, interval(0.001f, FLT_MAX), rec)){
-                // auto direction = random_on_hemisphere(states, i, j, rec.normal);
-                auto direction = random_unit_vector(states, i, j) + rec.normal;
-                current_ray = ray(rec.p, direction);
-                attenuation *= 0.5f;
+                ray scattered;
+                vec3 attenuation;
+                if(rec.mat_ptr->scatter(current_ray, rec, attenuation, scattered, states, i, j)){
+                    // attenuation *= 0.5f;
+                    current_attenuation *= attenuation;
+                    current_ray = scattered;
+                }
+                
+                
+                
             } else {
                 vec3 unit_vector = glm::normalize(r.direction());
                 float a = 0.5f * (unit_vector.y + 1.0f);
                 auto background = (1.0f - a) * vec3(1.0f, 1.0f, 1.0f) + a * vec3(0.5f, 0.7f, 1.0f);
-                return attenuation * background;
+                return current_attenuation * background;
             }
         }
 
-        return attenuation;
+        return current_attenuation;
         
 
 
