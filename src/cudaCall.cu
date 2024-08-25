@@ -44,19 +44,19 @@ namespace rayos {
 
 
     __global__ void createWorld(hittable** list, hittable** world, MyCam** camera, int width, int height, int samples, int depth){
-        if (threadIdx.x == 0 && blockIdx.x == 0){
+        // if (threadIdx.x == 0 && blockIdx.x == 0){
 
             list[0]     = new sphere(vec3(0.0f, 0.0f, -1.0f), 0.5f, new lambertian(vec3(0.1f, 0.2f, 0.5f)));
             list[1]     = new sphere(vec3(0.0f, -100.5f, -1.0f), 100.0f, new lambertian(vec3(0.8f, 0.8f, 0.0f)));
-            list[2]     = new sphere(vec3(-1.0f, 0.0f, -1.0f), 0.5f, new metal(vec3(0.8f, 0.8f, 0.8f)));
-            list[3]     = new sphere(vec3(1.0f, 0.0f, -1.0f), 0.5f, new metal(vec3(0.8f, 0.6f, 0.2f)));
+            list[2]     = new sphere(vec3(-1.0f, 0.0f, -1.0f), 0.5f, new metal(vec3(0.8f, 0.8f, 0.8f), 0.3f));
+            list[3]     = new sphere(vec3(1.0f, 0.0f, -1.0f), 0.5f, new metal(vec3(0.8f, 0.6f, 0.2f), 1.0f));
             *world      = new hittable_list(list, 4);  // the list has 4 spheres
             *camera     = new MyCam(width, height);  
             (*camera)->samples_per_pixel = samples;
             (*camera)->depth = depth;
             (*camera)->update();      
             
-        }
+        // }
     }
 
     
