@@ -29,3 +29,18 @@ combine both my approach and JoeAllan
 # Chapter 9. Recursion vs Iteration
 ## Introduction to diffuse material 
 ![Screenshot of the project](sampleImages/chap9.png)
+### Notes:
+I could use both i and j  but using only i is faster by 3x:
+vec3 random_vector(curandState_t* states,  int &i, int &j){
+        curandState_t x = states[i];
+        // curandState_t y = states[j];
+        
+        float a = random_float(&x);
+        float b = random_float(&x);
+        float c = random_float(&x); 
+        
+        states[i] = x; // save value back
+        // states[j] = y; // save value back
+        return vec3(a, b, c);
+}
+
