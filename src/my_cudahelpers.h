@@ -44,14 +44,14 @@ namespace rayos {
     __device__
     vec3 random_vector(curandState_t* states,  int &i, int &j){
         curandState_t x = states[i];
-        curandState_t y = states[j];
+        // curandState_t y = states[j];
         
         float a = random_float(&x);
-        float b = random_float(&y);
+        float b = random_float(&x);
         float c = random_float(&x); 
         
         states[i] = x; // save value back
-        states[j] = y; // save value back
+        // states[j] = y; // save value back
         return vec3(a, b, c);
 
     }
@@ -59,12 +59,12 @@ namespace rayos {
     __device__
     vec3 random_vector_in_range(curandState_t* states, int &i, int &j,  float min, float max){
         curandState_t x = states[i];
-        curandState_t y = states[j];
+        // curandState_t y = states[j];
         float a = random_float_range(&x, min, max);
-        float b = random_float_range(&y, min, max);
+        float b = random_float_range(&x, min, max);
         float c = random_float_range(&x, min, max);
         states[i] = x; // save value back
-        states[j] = y; // save value back
+        // states[j] = y; // save value back
         return vec3(a, b, c);
     }
 
@@ -99,11 +99,11 @@ namespace rayos {
     __device__
     vec3 sample_square(curandState_t* states, int& i, int& j) {
         curandState_t x = states[i];
-        curandState_t y = states[j];
-        vec3 random_vector =  vec3(random_float(&x) - 0.5f, random_float(&y) - 0.5f, 0);
+        // curandState_t y = states[j];
+        vec3 random_vector =  vec3(random_float(&x) - 0.5f, random_float(&x) - 0.5f, 0);
         
         states[i] = x; // save back the value  
-        states[j] = y; // save back the value 
+        // states[j] = y; // save back the value 
         
         return random_vector;
         

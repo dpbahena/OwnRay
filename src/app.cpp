@@ -116,8 +116,6 @@ namespace rayos {
                     case SDLK_KP_9:
                         samples += 1;
                         break;
-                    case SDLK_KP_2:
-                        break;
                     case SDLK_KP_4:
                         depth -= 1;
                         break;
@@ -126,6 +124,10 @@ namespace rayos {
                         break;
                     case SDLK_KP_6:
                         depth += 1;
+                        break;
+                    case SDLK_KP_2:
+                        samples = 500;
+                        depth = 100;
                         break;
                     case SDLK_KP_D:
                         break;
