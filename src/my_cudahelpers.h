@@ -51,11 +51,13 @@ namespace rayos {
     __device__
     vec3 random_vector(curandState_t* states,  int i, int j){
         curandState_t x = states[i];
+        // curandState_t y = states[j];
         
         double a = random_float(&x);
         double b = random_float(&x);
         double c = random_float(&x); //a * b;
         states[i] = x; // save value back
+        // states[j] = y; // save back value
         return vec3(a, b, c);
 
     }
@@ -63,10 +65,12 @@ namespace rayos {
     __device__
     vec3 random_vector_in_range(curandState_t* states, int i, int j,  double min, double max){
         curandState_t x = states[i];
+        // curandState_t y = states[j];
         double a = random_float_range(&x, min, max);
         double b = random_float_range(&x, min, max);
         double c = random_float_range(&x, min, max);
         states[i] = x; // save value back
+        // states[j] = y; // save back value
         return vec3(a, b, c);
     }
 
@@ -104,7 +108,7 @@ namespace rayos {
         curandState_t y = states[j];
         vec3 random_vector =  vec3(random_float(&x) - 0.5f, random_float(&y) - 0.5f, 0);
         
-        states[i] = x; // save back the value  
+        states[i] = x; // save back the value x
         states[j] = y; // save back the value 
         
         return random_vector;
@@ -179,15 +183,15 @@ namespace rayos {
         for(int k = 0; k < depth; k++){
             hit_record rec;
             
-            if ((*world)->hit(current_ray, interval(0.001, MAXFLOAT), rec)){
+            if ((*world)->hit(current_ray, interval(0.001, FLT_MAX/* MAXFLOAT */), rec)){
                 // vec3 direction = random_on_hemisphere(states, i, j, rec.normal);
-                vec3 direction = random_unit_vector(states, i, j) + rec.normal;
+                auto direction = random_unit_vector(states, i, j) + rec.normal;
                 current_ray = ray(rec.p, direction);
                 attenuation *= 0.5f ; 
             } else {
                 vec3 unit_vector = glm::normalize(r.direction());
                 float a = 0.5f * (unit_vector.y + 1.0f);
-                vec3 background =  (1.0f - a) * vec3(1.0f, 1.0f, 1.0f) + a * vec3(0.5f, 0.7f, 1.0f);
+                auto background =  (1.0f - a) * vec3(1.0f, 1.0f, 1.0f) + a * vec3(0.5f, 0.7f, 1.0f);
                 return attenuation * background;
             }
         }
