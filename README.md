@@ -45,6 +45,6 @@ vec3 random_vector(curandState_t* states,  int &i, int &j){
 }
 
 #Chapter 10. Abstract class of  Material
-## Lambertian and Metal
+## Lambertian and Metal/fuzz
 ![Screenshot of the project](sampleImages/chap10_samples50_depth10.png)
 ![Screenshot of the project](sampleImages/chap10_samples500_depth100.png)
