@@ -10,8 +10,7 @@ namespace rayos {
     
     __device__   __forceinline__
     uint32_t colorToUint32_t(glm::vec3& c);
-    __device__
-    float random_float(curandState_t* state);
+   
     __device__ 
     float random_float_range(curandState_t* state, float a, float b);
     __device__
@@ -40,6 +39,24 @@ namespace rayos {
     vec3 reflect(const vec3& v, const vec3& n) {
         return v - 2.0f * glm::dot(v,n) * n;
     }
+
+    __device__
+    inline vec3 refract(const vec3& uv, const vec3& n, float etai_over_etat) {
+        auto cos_theta = fmin(glm::dot(-uv, n), 1.0f);
+        vec3 r_out_perp =  etai_over_etat * (uv + cos_theta * n);
+        vec3 r_out_parallel = -sqrt(fabs(1.0f - glm::dot(r_out_perp, r_out_perp))) * n;
+        return r_out_perp + r_out_parallel;
+    }
+
+    __device__
+    float reflectance(float cosine, float refraction_index){
+        /* Use Schlick's approximation for reflectance */
+        auto r0 = (1 - refraction_index) / (1.0f + refraction_index);
+        r0 = r0 * r0;
+        return r0 + (1.0 - r0) * pow((1.0f - cosine), 5.0);
+
+    }
+
 
     __device__
     float random_float(curandState_t* state) {
@@ -191,19 +208,7 @@ namespace rayos {
 
     }
 
-    // __device__
-    // ray get_ray(int& i, int& j, vec3& pixel00_loc, vec3& cameraCenter, vec3& delta_u, vec3& delta_v, curandState_t* states) {
-    //     /* construct a ray originating from the origin and directed at randomly sampled point around the pixel location i, j */
-    //     auto offset = sample_square(states, i, j);
-    //     auto pixel_sample = pixel00_loc + ((i + offset.x) * delta_u) + ((j + offset.y) * delta_v);
-
-    //     auto ray_origin     = cameraCenter;
-    //     auto ray_direction  = pixel_sample - ray_origin;
-
-    //     return ray(ray_origin, ray_direction); 
-
-    // }
-
+    
     
 
 }

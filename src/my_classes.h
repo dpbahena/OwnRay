@@ -13,6 +13,9 @@ namespace rayos {
     __device__ bool near_zero(vec3 v);
     __device__
     vec3 reflect(const vec3& v, const vec3& n);
+    __device__ inline vec3 refract(const vec3& uv, const vec3& n, float etai_over_etat);
+    __device__ float random_float(curandState_t* state);
+    __device__ float reflectance(float cosine, float refraction_index);
 
 
 
@@ -279,6 +282,35 @@ namespace rayos {
             float fuzz;
     };
 
+
+    class dielectric : public material {
+        public:
+            __device__
+            dielectric(float refraction_index) : refraction_index(refraction_index) {}
+            __device__
+            virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState_t* states, int i, int j) const override {
+                attenuation = vec3(1.0f, 1.0f, 1.0f);
+                float ri = rec.front_face ? (1.0f / refraction_index ) : refraction_index;
+                vec3 unit_direction = glm::normalize(r_in.direction());
+                float cos_theta = fmin(glm::dot(-unit_direction, rec.normal), 1.0f);
+                float sin_theta = sqrt(1.0f - cos_theta * cos_theta);
+                bool cannot_refract = ri * sin_theta > 1.0f;
+                vec3 direction;
+                curandState_t x = states[i];
+                if (cannot_refract || reflectance(cos_theta, ri) > random_float(&x)) {
+                    direction = reflect(unit_direction, rec.normal);
+                } else {
+                    direction = refract(unit_direction, rec.normal, ri);
+                }
+
+                scattered = ray(rec.p, direction);
+                return true;
+            }
+        private:
+            /* Refractive index is vacuum or air, or the ratio of the material's ri over the ri of the enclosing media */
+            float refraction_index;
+            
+    };
 
 
 
