@@ -55,6 +55,7 @@ namespace rayos {
             *camera     = new MyCam(width, height);  
             (*camera)->samples_per_pixel = samples;
             (*camera)->depth = depth;
+            // (*camera)->camera_center = vec3(0.0f, 0.0f, 1.0f);
             (*camera)->update();      
             
         // }

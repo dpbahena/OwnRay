@@ -7,15 +7,15 @@
 namespace rayos {
 
     __device__
-    vec3 random_unit_vector(curandState_t* states,  int& i, int& j);
+    inline vec3 random_unit_vector(curandState_t* states,  int& i, int& j);
     __device__
-    vec3 sample_square(curandState_t* states, int& i, int& j);
-    __device__ bool near_zero(vec3 v);
+    inline vec3 sample_square(curandState_t* states, int& i, int& j);
+    __device__ inline bool near_zero(vec3 v);
     __device__
-    vec3 reflect(const vec3& v, const vec3& n);
+    inline vec3 reflect(const vec3& v, const vec3& n);
     __device__ inline vec3 refract(const vec3& uv, const vec3& n, float etai_over_etat);
-    __device__ float random_float(curandState_t* state);
-    __device__ float reflectance(float cosine, float refraction_index);
+    __device__ inline float random_float(curandState_t* state);
+    __device__ inline float reflectance(float cosine, float refraction_index);
 
 
 
@@ -79,7 +79,7 @@ namespace rayos {
             __device__ 
             void set_face_normal(const ray&r, const vec3& outward_normal){
                 /* sets the hit record notmal vector. Assume outward_normal is of unit length */
-                front_face = glm::dot(r.direction(), outward_normal) < 0;
+                front_face = glm::dot(r.direction(), outward_normal) < 0.0f;
                 normal = front_face ? outward_normal : -outward_normal;
             }
             
@@ -242,7 +242,7 @@ namespace rayos {
     class material {
         public:
         __device__
-        virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState_t* states, int i, int j) const = 0;
+        virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState_t* states, int i, int j) const {return false;} //const = 0;
     };
 
     class lambertian : public material {
@@ -250,7 +250,7 @@ namespace rayos {
             __device__
             lambertian(const vec3& albedo) : albedo(albedo) {}
             __device__
-            virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState_t* states, int i, int j) const override {
+            bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState_t* states, int i, int j) const override {
                 vec3 scatter_direction = rec.normal + random_unit_vector(states, i, j);
                 /* Catch if it is degenerate scatter_direction vector (avoids infinites and NaNs) */
                 if (near_zero(scatter_direction))
@@ -270,7 +270,7 @@ namespace rayos {
             __device__
             metal(const vec3& albedo, float fuzz) : albedo(albedo), fuzz(fuzz < 1? fuzz : 1) {}
             __device__
-            virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState_t* states, int i, int j) const override {
+            bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState_t* states, int i, int j) const override {
                 vec3 reflected = reflect(r_in.direction(), rec.normal);
                 reflected = glm::normalize(reflected) + (fuzz * random_unit_vector(states, i, j));
                 scattered = ray(rec.p, reflected);
@@ -288,7 +288,7 @@ namespace rayos {
             __device__
             dielectric(float refraction_index) : refraction_index(refraction_index) {}
             __device__
-            virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState_t* states, int i, int j) const override {
+            bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState_t* states, int i, int j) const override {
                 attenuation = vec3(1.0f, 1.0f, 1.0f);
                 float ri = rec.front_face ? (1.0f / refraction_index ) : refraction_index;
                 vec3 unit_direction = glm::normalize(r_in.direction());
@@ -302,7 +302,7 @@ namespace rayos {
                 } else {
                     direction = refract(unit_direction, rec.normal, ri);
                 }
-
+                states[i] = x;  //saves back the value
                 scattered = ray(rec.p, direction);
                 return true;
             }
