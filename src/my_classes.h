@@ -187,22 +187,37 @@ namespace rayos {
             int samples_per_pixel           = 50;
             float sample_scale;
             int depth                       = 5;
+            float vFOV                       = 20.0; // in degrees
+            point lookfrom = point(-2.0f,2.0f,1.0f);   // Point camera is looking from
+            point lookat   = point(0.0f,0.0f,-1.0f);  // Point camera is looking at
+            vec3   vup      = vec3(0.0f,1.0f,0.0f);     // Camera-relative "up" direction
+
 
         __device__
         void update(){
-            
+            camera_center = lookfrom;
+            focal_length = glm::length(lookfrom - lookat);
+
+
+            float h = tan(glm::radians(vFOV) / 2.0);
+            viewport_height = 2.0f * h * focal_length;
             float vieport_width = viewport_height * aspectRatio;
+
+            // Calculate the u,v,w unit basis vectors for the camera coordinate frame.
+            w = glm::normalize(lookfrom - lookat);
+            u = glm::normalize(cross(vup, w));
+            v = glm::cross(w, u);
             
             /* Calculate the vectors across the horizontal and down the vertical viewport edges */
-            viewport_u = vec3(vieport_width, 0.0f, 0.0f);
-            viewport_v = vec3(0.0f, -viewport_height, 0.0f);
+            viewport_u = vieport_width * u;
+            viewport_v = -viewport_height * v;
 
             /* Calculate the horizontal and vertical delta vectors from pixel to pixel */
             pixel_delta_u = viewport_u / static_cast<float>(image_width);
             pixel_delta_v = viewport_v / static_cast<float>(image_height);
 
             /* Calculate the locations of the upper left pixel */
-            auto viewport_upper_left = camera_center - vec3(0.0f, 0.0f, focal_length) - viewport_u / 2.0f - viewport_v / 2.0f;
+            auto viewport_upper_left = camera_center - (focal_length * w) - viewport_u / 2.0f - viewport_v / 2.0f;
             pixel00_loc = viewport_upper_left + 0.5f * (pixel_delta_u + pixel_delta_v);
 
             sample_scale = 1.0f / static_cast<float>(samples_per_pixel);
@@ -233,6 +248,7 @@ namespace rayos {
             int image_width;
             int image_height;
             float aspectRatio;
+            vec3   u, v, w;              // Camera frame basis vectors
 
 
 
