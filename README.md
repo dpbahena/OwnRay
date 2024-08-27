@@ -51,3 +51,7 @@ vec3 random_vector(curandState_t* states,  int &i, int &j){
 
 # Chapter 11. Camera movement 
 ![Screenshot of the project](sampleImages/chap11.png)
+
+# Chapter 12. Defocus Blur
+![Screenshot of the project](sampleImages/chap12.png)
+

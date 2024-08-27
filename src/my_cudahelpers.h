@@ -18,9 +18,10 @@ namespace rayos {
     inline vec3 random_vector_in_range(curandState_t* states, int& i, int& j, float min, float max);
      __device__
     inline vec3 random_in_unit_sphere(curandState_t* states,  int& i, int& j);
-    
      __device__
     inline vec3 random_on_hemisphere(curandState_t* states, int& i, int& j, const vec3& normal);
+    
+
 
 
     const interval interval::empty          = interval(+MAXFLOAT, -MAXFLOAT);
@@ -109,6 +110,19 @@ namespace rayos {
             if (glm::dot(p,p) < 1.0f){
                 return p;
             }
+        }
+    }
+
+    __device__
+    inline vec3 random_in_unit_disk(curandState_t* states, int&i, int& j){
+        curandState_t x = states[i];
+        // curandState_t y = states[j];
+        while (true) {
+            vec3 p = vec3(random_float_range(&x, -1.0f, 1.0f), random_float_range(&x, -1.0f, 1.0f), 0.0f);
+            states[i] = x; // saves value back
+            // states[j] = y; // saves value back
+            if (glm::dot(p, p) < 1.0f)
+                return p;
         }
     }
 

@@ -55,7 +55,7 @@ namespace rayos {
             list[1]     = new sphere(vec3(0.0f, -100.5f, -1.0f), 100.0f, new lambertian(vec3(0.8f, 0.8f, 0.0f)));
             list[2]     = new sphere(vec3(-1.0f, 0.0f, -1.0f), 0.5f, new dielectric(1.50f));
             list[3]     = new sphere(vec3(-1.0f, 0.0f, -1.0f), 0.4f, new dielectric(1.0f / 1.50f));
-            list[4]     = new sphere(vec3(1.0f, 0.0f, -1.0f), 0.5f, new metal(vec3(0.8f, 0.6f, 0.2f), 0.1f));
+            list[4]     = new sphere(vec3(1.0f, 0.0f, -1.0f), 0.5f, new metal(vec3(0.8f, 0.6f, 0.2f), 1.0f));
             *world      = new hittable_list(list, 5);  // the list has 5 spheres
             *camera     = new MyCam(width, height);  
             (*camera)->samples_per_pixel = samples;

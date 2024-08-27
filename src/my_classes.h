@@ -16,6 +16,7 @@ namespace rayos {
     __device__ inline vec3 refract(const vec3& uv, const vec3& n, float etai_over_etat);
     __device__ inline float random_float(curandState_t* state);
     __device__ inline float reflectance(float cosine, float refraction_index);
+    __device__ inline vec3 random_in_unit_disk(curandState_t* states, int&i, int& j);
 
 
 
@@ -192,15 +193,23 @@ namespace rayos {
             point lookat   = point(0.0f,0.0f,-1.0f);  // Point camera is looking at
             vec3   vup      = vec3(0.0f,1.0f,0.0f);     // Camera-relative "up" direction
 
+            float defocus_angle = 10;  // Variation angle of rays through each pixel
+            float focus_dist = 3.4;    // Distance from camera lookfrom point to plane of perfect focus
+
 
         __device__
         void update(){
+
+            
             camera_center = lookfrom;
-            focal_length = glm::length(lookfrom - lookat);
+            sample_scale = 1.0f / static_cast<float>(samples_per_pixel);
+            // Determine viewport dimensions
+
+            // focal_length = glm::length(lookfrom - lookat);
 
 
             float h = tan(glm::radians(vFOV) / 2.0);
-            viewport_height = 2.0f * h * focal_length;
+            viewport_height = 2.0f * h * focus_dist;
             float vieport_width = viewport_height * aspectRatio;
 
             // Calculate the u,v,w unit basis vectors for the camera coordinate frame.
@@ -217,19 +226,24 @@ namespace rayos {
             pixel_delta_v = viewport_v / static_cast<float>(image_height);
 
             /* Calculate the locations of the upper left pixel */
-            auto viewport_upper_left = camera_center - (focal_length * w) - viewport_u / 2.0f - viewport_v / 2.0f;
+            auto viewport_upper_left = camera_center - (focus_dist * w) - viewport_u / 2.0f - viewport_v / 2.0f;
             pixel00_loc = viewport_upper_left + 0.5f * (pixel_delta_u + pixel_delta_v);
 
-            sample_scale = 1.0f / static_cast<float>(samples_per_pixel);
+            // Calculate the camera defocus disk basis vectors.
+            auto defocus_radius = focus_dist * tan(glm::radians(defocus_angle / 2.0f));
+            defocus_disk_u = u * defocus_radius;
+            defocus_disk_v = v * defocus_radius;
+            
         }
 
         __device__
         ray get_ray(int& i, int& j, curandState_t* states) const {
-            /* construct a ray originating from the origin and directed at randomly sampled point around the pixel location i, j */
+            /* Construct a camera ray originating from the defocus disk and directed at a randomly sampled point around the pixel location i, j. */
+            
             auto offset = sample_square(states, i, j);
             auto pixel_sample = pixel00_loc + ((i + offset.x) * pixel_delta_u) + ((j + offset.y) * pixel_delta_v);
 
-            auto ray_origin     = camera_center;
+            auto ray_origin     = (defocus_angle <= 0) ? camera_center : defocus_disk_sample(states, i, j);
             auto ray_direction  = pixel_sample - ray_origin;
 
             return ray(ray_origin, ray_direction); 
@@ -249,6 +263,17 @@ namespace rayos {
             int image_height;
             float aspectRatio;
             vec3   u, v, w;              // Camera frame basis vectors
+            vec3   defocus_disk_u;       // Defocus disk horizontal radius
+            vec3   defocus_disk_v;       // Defocus disk vertical radius
+
+            __device__
+            point defocus_disk_sample(curandState_t* states, int &i, int& j) const {
+                /* returns a random point in the camera defocus disk */
+                vec3 p = random_in_unit_disk(states, i, j);
+                return camera_center + (p.x * defocus_disk_u) + (p.y * defocus_disk_v);
+
+            }
+
 
 
 
