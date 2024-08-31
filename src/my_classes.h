@@ -188,13 +188,13 @@ namespace rayos {
             int samples_per_pixel           = 50;
             float sample_scale;
             int depth                       = 5;
-            float vFOV                       = 20.0; // in degrees
-            point lookfrom = point(-2.0f,2.0f,1.0f);   // Point camera is looking from
-            point lookat   = point(0.0f,0.0f,-1.0f);  // Point camera is looking at
+            float vFOV                       = 20.0f; // in degrees
+            point lookfrom = point(13.0f,2.0f,3.0f);   // Point camera is looking from
+            point lookat   = point(0.0f,0.0f,0.0f);  // Point camera is looking at
             vec3   vup      = vec3(0.0f,1.0f,0.0f);     // Camera-relative "up" direction
 
-            float defocus_angle = 10;  // Variation angle of rays through each pixel
-            float focus_dist = 3.4;    // Distance from camera lookfrom point to plane of perfect focus
+            float defocus_angle = 0.6f;  // Variation angle of rays through each pixel
+            float focus_dist = 10.0;    // Distance from camera lookfrom point to plane of perfect focus
 
 
         __device__

@@ -55,3 +55,8 @@ vec3 random_vector(curandState_t* states,  int &i, int &j){
 # Chapter 12. Defocus Blur
 ![Screenshot of the project](sampleImages/chap12.png)
 
+# Chapter 14. Final Render 
+## Uses lots of spheres with random centers and colors;
+![Screenshot of the project](sampleImages/chap14.png)
+
+

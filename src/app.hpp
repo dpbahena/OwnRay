@@ -28,9 +28,9 @@ namespace rayos {
    
     
     Extent2D extent;
-    int samples = 50;
-    int depth = 10;
-    bool info_flag = false;
+    int samples = 10;
+    int depth = 5;
+    bool info_flag = true;
 
 
     
