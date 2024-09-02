@@ -292,9 +292,10 @@ namespace rayos {
     __global__ void render_kernel(uint32_t* buffer, int width, int height, MyCam** camera, hittable** world, curandState_t* states){
         int i = threadIdx.x + blockIdx.x * blockDim.x;
         int j = threadIdx.y + blockIdx.y * blockDim.y;
-        int idx = width * j + i;
+        // int idx = width * j + i;
        
-        if (idx >= (width * height)) return;
+        // if (idx >= (width * height)) return;
+        if (i >= width || j >= height) return;
         
         vec3 color = vec3(0.0f, 0.0f, 0.0f);
         for (int x = 0; x < (*camera)->samples_per_pixel; x++){
@@ -305,7 +306,7 @@ namespace rayos {
 
         // vec3 color = ray_color(r, world);
         color *= (*camera)->sample_scale;
-        buffer[idx] = colorToUint32_t(color);
+        buffer[width * j + i] = colorToUint32_t(color);
         
     }
 
@@ -373,18 +374,18 @@ namespace rayos {
         // int total_random_spheres = across_x * across_z;
                            
                      
-        // createRandomHittableList<<<gridSize, blockSize>>>(d_list, across_x, across_z, d_states_0, d_count);
-        // checkCudaErrors(cudaGetLastError());
-        // checkCudaErrors(cudaDeviceSynchronize() );
-        // int h_count;
-        // checkCudaErrors(cudaMemcpy(&h_count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
-        // printf("number of random spheres %d\n", h_count);
-
-
-
-        createRandomHittableListIterate<<<1, 1>>>(d_list, d_states_0);
+        createRandomHittableList<<<gridSize, blockSize>>>(d_list, across_x, across_z, d_states_0, d_count);
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize() );
+        int h_count;
+        checkCudaErrors(cudaMemcpy(&h_count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
+        printf("number of random spheres %d\n", h_count);
+
+
+
+        // createRandomHittableListIterate<<<1, 1>>>(d_list, d_states_0);
+        // checkCudaErrors(cudaGetLastError());
+        // checkCudaErrors(cudaDeviceSynchronize() );
 
 
 
@@ -405,7 +406,7 @@ namespace rayos {
 
         clock_t start, stop;
         start = clock();
-        threads = 8;
+        threads = 16;
         dim3 blockSize1(threads, threads);
         blocks_x = (width + blockSize.x - 1) / blockSize.x;
         blocks_y = (height + blockSize.y - 1) / blockSize.y;
