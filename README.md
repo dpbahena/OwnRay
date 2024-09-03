@@ -59,4 +59,7 @@ vec3 random_vector(curandState_t* states,  int &i, int &j){
 ## Uses lots of spheres with random centers and colors;
 ![Screenshot of the project](sampleImages/chap14.png)
 
+# Book 2. Motion Blur
+##
+![Screenshot of the project](sampleImages/Book2_MotionBlur.png)
 

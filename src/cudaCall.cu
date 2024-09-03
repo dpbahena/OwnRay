@@ -84,7 +84,8 @@ namespace rayos {
             if (choose_mat < 0.8f){
                 vec3 albedo = vec3(RNDi, RNDi, RNDi) * vec3(RNDj, RNDj, RNDj);
                 sphere_material = new lambertian(albedo);
-                list[across_x * j + i] = new sphere(center, 0.2f, sphere_material);
+                auto center2 = center + vec3(0.0f, RND(0.0f, 0.5f), 0.0f);
+                list[across_x * j + i] = new sphere(center, center2, 0.2f, sphere_material);
             } else if (choose_mat < 0.95f) {
                 vec3 albedo = vec3(0.5f * (1.0f + RNDi), 0.5f * (1.0f + RNDj), 0.5f * (1.0f + RNDi));
                 fuzz = 0.5f * RNDj;
@@ -172,87 +173,7 @@ namespace rayos {
     }
 
 
-    __global__ void createWorld1(hittable** list, hittable** world, MyCam** camera, int width, int height, int samples, int depth, int randomList, int N){
-
-        lambertian* ground_material = new lambertian(vec3(0.5f, 0.5f, 0.5f));
-        metal*      left_material   = new metal(vec3(0.7f, 0.6f, 0.5f), 0.0f);
-        dielectric* middle_material = new dielectric(1.5f);
-        lambertian* right_material  = new lambertian(vec3(0.4f, 0.2f, 0.1f));
-
-        int diff = N - randomList;
-        // int dem = abs(4 - diff);
-        // randomList -= dem;  
-        
-        if (diff == 1) {
-            printf("dif: %d\n",diff);
-            list[randomList + 0] = new sphere(point(0, -1000.0f, 0.0f), 1000.0f, ground_material);
-            delete left_material;
-            delete right_material;
-            delete middle_material;
-            *world      = new hittable_list(list, randomList + 1 );  // the list has N + 4 spheres
-
-
-        }else if (diff == 2) {
-            printf("dif: %d\n",diff);
-            list[randomList + 0] = new sphere(point(0, -1000.0f, 0.0f), 1000.0f, ground_material);
-            list[randomList + 1] = new sphere(point(0.0f, 1.0f, 0.0f), 1.0f, middle_material);
-            delete left_material;
-            delete right_material;
-            *world      = new hittable_list(list, randomList + 2 );  // the list has N + 4 spheres
-
-        } else if (diff == 3) {
-            printf("dif: %d\n",diff);
-            list[randomList + 0] = new sphere(point(0, -1000.0f, 0.0f), 1000.0f, ground_material);
-            list[randomList + 1] = new sphere(point(0.0f, 1.0f, 0.0f), 1.0f, middle_material);
-            list[randomList + 2] = new sphere(point(-4.0f, 1.0f, 0.0f), 1.0f, right_material);
-            delete left_material;
-            *world      = new hittable_list(list, randomList + 3 );  // the list has N + 4 spheres
-
-
-        } else  if (diff == 4) {
-            printf("dif: %d\n",diff);
-            list[randomList + 0] = new sphere(point(0, -1000.0f, 0.0f), 1000.0f, ground_material);
-            list[randomList + 1] = new sphere(point(0.0f, 1.0f, 0.0f), 1.0f, middle_material);
-            list[randomList + 2] = new sphere(point(-4.0f, 1.0f, 0.0f), 1.0f, right_material);
-            list[randomList + 3] = new sphere(point(4.0f, 1.0f, 0.0f), 1.0f, left_material);
-            *world      = new hittable_list(list, randomList + 4 );  // the list has N + 4 spheres
-
-        } else if (diff == 0){
-            printf("dif: %d\n",diff);
-            delete left_material;
-            delete right_material;
-            delete middle_material;
-            delete ground_material;
-            *world      = new hittable_list(list, randomList);  // the list has N + 4 spheres
-
-        
-        }
-
-        if (abort) assert(diff <= 4);
-        
-        /* N is the number of random spheres already allocated in the list.
-         *  Now we will just continue adding more spheres
-         */
-        
-        // list[randomList + 0] = new sphere(point(0, -1000.0f, 0.0f), 1000.0f, ground_material);
-        // list[randomList + 1] = new sphere(point(0.0f, 1.0f, 0.0f), 1.0f, middle_material);
-        // list[randomList + 2] = new sphere(point(-4.0f, 1.0f, 0.0f), 1.0f, right_material);
-        // list[randomList + 3] = new sphere(point(4.0f, 1.0f, 0.0f), 1.0f, left_material);
-        
-        
-        // *world      = new hittable_list(list, randomList + 2 );  // the list has N + 4 spheres
-        printf("camera update\n");
-        
-        *camera     = new MyCam(width, height);  
-        (*camera)->samples_per_pixel = samples;
-        (*camera)->depth = depth;
-        (*camera)->update();  
-        
-
-
-
-    }
-
+    
     __global__ void createWorld(hittable** list, hittable** world, MyCam** camera, int width, int height, int samples, int depth, int N){
 
         lambertian* ground_material = new lambertian(vec3(0.5f, 0.5f, 0.5f));
@@ -437,24 +358,19 @@ namespace rayos {
 
         renderer.render(h_image);
 
+
+
+
+
+
         delete[] h_image;
-
-        // c heckCudaErrors(cudaDeviceSynchronize() );
-
-        
         freeWorld<<<1, 1>>>(d_list, d_world, d_camera, total_spheres);
-        // freeWorld<<<1, 1>>>(d_list, h_count );
-        
-        
-        
-        
         cudaFree(d_world);
         cudaFree(d_states);
         cudaFree(d_states_0);
         cudaFree(d_camera);
         cudaFree(d_count);
         cudaFree(d_list);
-        // cudaFree(d_list_final);
         cudaFree(colorBuffer);
 
         cudaDeviceReset();

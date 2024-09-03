@@ -51,11 +51,14 @@ namespace rayos {
         public:
             
             __device__ ray(){}
-            __device__ ray(const point& origin, const vec3& direction) : origin_(origin), direction_(direction) {}
+            __device__ ray(const point& origin, const vec3& direction, float time) : origin_(origin), direction_(direction), tm(time) {}
+            __device__ ray(const point& origin, const vec3& direction) : ray(origin, direction, 0.0f) {}
 
             
             __device__  const point& origin() const { return origin_; }
             __device__  const vec3& direction() const { return direction_;}
+
+            __device__ float time() const { return tm; }
 
             __device__  point at(float t) const {
                 return origin_ + t * direction_;
@@ -65,6 +68,7 @@ namespace rayos {
 
         point origin_;
         vec3 direction_;
+        float tm;
     };
 
     class material;  // placeholder
@@ -74,6 +78,8 @@ namespace rayos {
             point p;
             vec3 normal;
             float t;
+            float u;
+            float v;
             bool front_face;
             material* mat_ptr;
 
@@ -96,11 +102,18 @@ namespace rayos {
 
     class sphere : public hittable {
         public:
+            // STATIONARY SPHERE
             __device__ 
-            sphere (const point& center, float radius, material* mat) : center(center), radius(radius), mat_ptr(mat){}
+            sphere (const point& static_center, float radius, material* mat) : center(static_center, vec3(0.0f, 0.0f, 0.0f)), radius(radius), mat_ptr(mat){}
+            // MOVING SPHERE
+            __device__ 
+            sphere (const point& center1, const point& center2, float radius, material* mat) : center(center1, center2 - center1), radius(radius), mat_ptr(mat){}
             __device__ 
             bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
-                vec3 oc = center - r.origin();
+                
+                point current_center = center.at(r.time());
+                vec3 oc = current_center - r.origin();
+
                 float a = glm::dot(r.direction(), r.direction());
                 float h = glm::dot(r.direction(), oc);
                 float c = glm::dot(oc, oc) - radius * radius;
@@ -121,8 +134,9 @@ namespace rayos {
 
                 rec.t = root;
                 rec.p = r.at(rec.t);
-                vec3 outward_normal = (rec.p - center) / radius;
+                vec3 outward_normal = (rec.p - current_center) / radius;
                 rec.set_face_normal(r, outward_normal);
+                get_sphere_uv(outward_normal, rec.u, rec.v);
                 rec.mat_ptr = mat_ptr;
 
                 return true;
@@ -131,8 +145,23 @@ namespace rayos {
             material* mat_ptr;
 
         private:
-            point center;
+            ray center;
             float radius;
+            __device__
+            static void get_sphere_uv(const point& p, float& u, float& v){
+                // p: a given point on the sphere of radius one, centered at the origin.
+                // u: returned value [0,1] of angle around the Y axis from X=-1.
+                // v: returned value [0,1] of angle from Y=-1 to Y=+1.
+                //     <1 0 0> yields <0.50 0.50>       <-1  0  0> yields <0.00 0.50>
+                //     <0 1 0> yields <0.50 1.00>       < 0 -1  0> yields <0.50 0.00>
+                //     <0 0 1> yields <0.25 0.50>       < 0  0 -1> yields <0.75 0.50>
+
+                auto theta = std::acos(-p.y);
+                auto phi = std::atan2(-p.z, p.x) + pi;
+
+                u = phi / (2*pi);
+                v = theta / pi;
+            }
     };
 
 
@@ -245,8 +274,12 @@ namespace rayos {
 
             auto ray_origin     = (defocus_angle <= 0) ? camera_center : defocus_disk_sample(states, i, j);
             auto ray_direction  = pixel_sample - ray_origin;
+            curandState_t x = states[i];
+            auto ray_time = random_float(&x);
+            states[i] = x; // save value back
 
-            return ray(ray_origin, ray_direction); 
+
+            return ray(ray_origin, ray_direction, ray_time); 
 
         }
 
@@ -297,7 +330,7 @@ namespace rayos {
                 if (near_zero(scatter_direction))
                     scatter_direction = rec.normal;
 
-                scattered = ray(rec.p, scatter_direction);
+                scattered = ray(rec.p, scatter_direction, r_in.time());
                 attenuation = albedo;
                 return true;
             }
@@ -314,7 +347,7 @@ namespace rayos {
             bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState_t* states, int i, int j) const override {
                 vec3 reflected = reflect(r_in.direction(), rec.normal);
                 reflected = glm::normalize(reflected) + (fuzz * random_unit_vector(states, i, j));
-                scattered = ray(rec.p, reflected);
+                scattered = ray(rec.p, reflected, r_in.time());
                 attenuation = albedo;
                 return (glm::dot(scattered.direction(), rec.normal) > 0);
             }
@@ -344,7 +377,7 @@ namespace rayos {
                     direction = refract(unit_direction, rec.normal, ri);
                 }
                 states[i] = x;  //saves back the value
-                scattered = ray(rec.p, direction);
+                scattered = ray(rec.p, direction, r_in.time());
                 return true;
             }
         private:
