@@ -28,6 +28,13 @@ namespace rayos {
             __device__
             interval (float min, float max) : min(min), max(max){}
             __device__
+            interval (const interval& a, const interval& b) {
+                /*  Create the interval tightly enclosing the two input intervals */
+                min = a.min <= b.min ? a.min : b.min;
+                max = a.max >= b.max ? a.max : b.max;
+
+            }
+            __device__
             float size() const {
                 return max - min;
             }
@@ -39,6 +46,13 @@ namespace rayos {
             bool surrounds(float x) const {
                 return min < x && x < max;
             }
+
+            __device__
+            interval expand(float delta) const {
+                auto padding = delta / 2.0;
+                return interval(min - padding, max + padding);
+            }
+
             
             static const interval empty, universe;
 
@@ -97,17 +111,90 @@ namespace rayos {
             
             __device__ 
             virtual bool hit(const ray& r, interval ray_t, hit_record& rec) const = 0;
+            __device__
+            virtual aabb bounding_box() const = 0;
 
     };
+
+    class aabb {
+        public:
+            aabb() {} // default AABB is empty, since intervals are empty by default
+            aabb(const interval& x, const interval& y, const interval& z) : x(x), y(y), z(z) {}
+            aabb(const point& a, const point& b) {
+                /* Treat the 2 points a and b as extrema for the bounding box so we don't require a particular min/max coordinate order */
+                x = a.x <= b.x ? interval(a.x, b.x) : interval(b.x, a.x);
+                y = a.y <= b.y ? interval(a.y, b.y) : interval(b.y, a.y);
+                z = a.z <= b.z ? interval(a.z, b.z) : interval(b.z, a.z); 
+            }
+
+            aabb(const aabb& box0, const aabb& box1) {
+                x = interval(box0.x, box1.x);
+                y = interval(box0.y, box1.y);
+                z = interval(box0.z, box1.z);
+            }
+
+            const interval& axis_interval(int n) const {
+
+                if (n == 1) return y;
+                if (n == 2) return z;
+                return x;
+
+            }
+
+            bool hit(const ray& r, interval ray_t) const {
+
+                const point& ray_orig = r.origin();
+                const vec3& ray_dir = r.direction();
+
+                for (int axis = 0; axis < 3; axis++) {
+                    const interval& ax = axis_interval(axis);
+                    const float adinv = 1.0f / ray_dir[axis];
+
+                    auto t0 = (ax.min - ray_orig[axis]) * adinv;
+                    auto t1 = (ax.max - ray_orig[axis]) * adinv;
+
+                    if (t0 < t1) {
+                        if (t0 > ray_t.min) ray_t.min = t0;
+                        if (t1 < ray_t.max) ray_t.max = t1;
+                    } else {
+                        if (t1 > ray_t.min) ray_t.min = t1;
+                        if (t0 < ray_t.max) ray_t.max = t0;
+                    }
+
+                    if (ray_t.max <= ray_t.min) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            
+            interval x, y, z;
+
+
+        private:
+
+    };
+    
 
     class sphere : public hittable {
         public:
             // STATIONARY SPHERE
             __device__ 
-            sphere (const point& static_center, float radius, material* mat) : center(static_center, vec3(0.0f, 0.0f, 0.0f)), radius(radius), mat_ptr(mat){}
+            sphere (const point& static_center, float radius, material* mat) : center(static_center, vec3(0.0f, 0.0f, 0.0f)), radius(radius), mat_ptr(mat){
+                auto rvec = vec3(radius, radius, radius);
+                bbox = aabb(static_center - rvec, static_center + rvec);
+            }
             // MOVING SPHERE
             __device__ 
-            sphere (const point& center1, const point& center2, float radius, material* mat) : center(center1, center2 - center1), radius(radius), mat_ptr(mat){}
+            sphere (const point& center1, const point& center2, float radius, material* mat) : center(center1, center2 - center1), radius(radius), mat_ptr(mat){
+                auto rvec = vec3(radius, radius, radius);
+                aabb box1(center.at(0) - rvec, center.at(0) + rvec);
+                aabb box2(center.at(1) - rvec, center.at(1) + rvec);
+                bbox = aabb(box1, box2);
+
+            }
             __device__ 
             bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
                 
@@ -147,6 +234,8 @@ namespace rayos {
         private:
             ray center;
             float radius;
+            aabb bbox;
+
             __device__
             static void get_sphere_uv(const point& p, float& u, float& v){
                 // p: a given point on the sphere of radius one, centered at the origin.
@@ -169,11 +258,16 @@ namespace rayos {
         public:
         hittable** list;
         int list_size;
+        aabb bbox;
 
         __device__ 
         hittable_list() {}
         __device__ 
-        hittable_list(hittable **list, int n) : list(list), list_size(n)  {}
+        hittable_list(hittable **list, int n) : list(list), list_size(n)  {
+            for(int i = 0; i < list_size; i++){
+                bbox = aabb(bbox, list[i]->bounding_box());
+            }
+        }
         // __device__
         // void clear() {list_size = 0; }
 
@@ -194,12 +288,19 @@ namespace rayos {
             return hit_anything;
         }
 
-
-
-
-
+        aabb bounding_box() const override { return bbox; }
     };
 
+    class bvh_node : public hittable {
+        public:
+            bvh_node(hittable_list** list) : bvh_node(list->)
+            
+        private:
+            hittable** left;
+            hittable** right;
+            aabb bbox;
+
+    };
 
     class MyCam {
         public:
