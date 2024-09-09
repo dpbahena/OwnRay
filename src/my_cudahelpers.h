@@ -69,6 +69,8 @@ namespace rayos {
         return a + (b - a) * (curand_uniform(state) - 0.5f) * 2.0f;   // this approach includes the upper limit   -1 to 1.0  it includes 1.0
     }
 
+   
+
     __device__
     inline vec3 random_vector(curandState_t* states,  int &i, int &j){
         curandState_t x = states[i];

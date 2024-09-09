@@ -3,6 +3,7 @@
 #include "definitions.h"
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
+#include <thrust/sort.h>
 
 namespace rayos {
 
@@ -17,6 +18,8 @@ namespace rayos {
     __device__ inline float random_float(curandState_t* state);
     __device__ inline float reflectance(float cosine, float refraction_index);
     __device__ inline vec3 random_in_unit_disk(curandState_t* states, int&i, int& j);
+    template<typename T>
+    __device__ void swap(T& a, T& b);
 
 
 
@@ -106,170 +109,319 @@ namespace rayos {
             
     };
 
+    
+
+    // class aabb {
+    //     public:
+    //         __device__
+    //         aabb() {} // default AABB is empty, since intervals are empty by default
+
+    //         __device__
+    //         aabb(const interval& x, const interval& y, const interval& z) : x(x), y(y), z(z) {}
+
+    //         __device__
+    //         aabb(const point& a, const point& b) {
+    //             /* Treat the 2 points a and b as extrema for the bounding box so we don't require a particular min/max coordinate order */
+    //             x = a.x <= b.x ? interval(a.x, b.x) : interval(b.x, a.x);
+    //             y = a.y <= b.y ? interval(a.y, b.y) : interval(b.y, a.y);
+    //             z = a.z <= b.z ? interval(a.z, b.z) : interval(b.z, a.z); 
+    //         }
+    //         __device__
+    //         aabb(const aabb& box0, const aabb& box1) {
+    //             x = interval(box0.x, box1.x);
+    //             y = interval(box0.y, box1.y);
+    //             z = interval(box0.z, box1.z);
+    //         }
+
+    //         __device__
+    //         const interval& axis_interval(int n) const {
+
+    //             if (n == 1) return y;
+    //             if (n == 2) return z;
+    //             return x;
+
+    //         }
+    //         __device__
+    //         bool hit(const ray& r, interval ray_t) const {
+
+    //             const point& ray_orig = r.origin();
+    //             const vec3& ray_dir = r.direction();
+
+    //             for (int axis = 0; axis < 3; axis++) {
+    //                 const interval& ax = axis_interval(axis);
+    //                 const float adinv = 1.0f / ray_dir[axis];
+
+    //                 auto t0 = (ax.min - ray_orig[axis]) * adinv;
+    //                 auto t1 = (ax.max - ray_orig[axis]) * adinv;
+
+    //                 if (t0 < t1) {
+    //                     if (t0 > ray_t.min) ray_t.min = t0;
+    //                     if (t1 < ray_t.max) ray_t.max = t1;
+    //                 } else {
+    //                     if (t1 > ray_t.min) ray_t.min = t1;
+    //                     if (t0 < ray_t.max) ray_t.max = t0;
+    //                 }
+
+    //                 if (ray_t.max <= ray_t.min) {
+    //                     return false;
+    //                 }
+    //             }
+
+    //             return true;
+    //         }
+
+            
+    //         interval x, y, z;
+
+
+    //     private:
+
+    // };
+
+    class AABB {
+    public:
+        point minimum, maximum;
+
+        __device__ AABB() {}
+        __device__ AABB(const point& a, const point& b) { minimum = a; maximum = b; }
+
+        __device__ bool hit(const ray& r, interval ray_t) const {
+            for (int a = 0; a < 3; a++) {
+                auto invD = 1.0f / r.direction()[a];
+                auto t0 = (minimum[a] - r.origin()[a]) * invD;
+                auto t1 = (maximum[a] - r.origin()[a]) * invD;
+                if (invD < 0.0f) swap(t0, t1);
+                ray_t.min = t0 > ray_t.min ? t0 : ray_t.min;
+                ray_t.max = t1 < ray_t.max ? t1 : ray_t.max;
+                if (ray_t.max <= ray_t.min) return false;
+            }
+            return true;
+        }
+
+        __device__ static AABB surrounding_box(const AABB& box0, const AABB& box1) {
+            point small(fmin(box0.minimum.x, box1.minimum.x),
+                        fmin(box0.minimum.y, box1.minimum.y),
+                        fmin(box0.minimum.z, box1.minimum.z));
+            point big(fmax(box0.maximum.x, box1.maximum.x),
+                    fmax(box0.maximum.y, box1.maximum.y),
+                    fmax(box0.maximum.z, box1.maximum.z));
+            return AABB(small, big);
+        }
+    };
+
+
+    // class hittable {
+    //     public:
+            
+    //         __device__ 
+    //         virtual bool hit(const ray& r, interval ray_t, hit_record& rec) const = 0;
+    //         __device__
+    //         virtual aabb bounding_box() const = 0;
+
+    // };
+
     class hittable {
         public:
-            
             __device__ 
             virtual bool hit(const ray& r, interval ray_t, hit_record& rec) const = 0;
+
             __device__
-            virtual aabb bounding_box() const = 0;
-
+            virtual bool bounding_box(float time0, float time1, AABB& output_box) const = 0;
     };
 
-    class aabb {
-        public:
-            aabb() {} // default AABB is empty, since intervals are empty by default
-            aabb(const interval& x, const interval& y, const interval& z) : x(x), y(y), z(z) {}
-            aabb(const point& a, const point& b) {
-                /* Treat the 2 points a and b as extrema for the bounding box so we don't require a particular min/max coordinate order */
-                x = a.x <= b.x ? interval(a.x, b.x) : interval(b.x, a.x);
-                y = a.y <= b.y ? interval(a.y, b.y) : interval(b.y, a.y);
-                z = a.z <= b.z ? interval(a.z, b.z) : interval(b.z, a.z); 
-            }
-
-            aabb(const aabb& box0, const aabb& box1) {
-                x = interval(box0.x, box1.x);
-                y = interval(box0.y, box1.y);
-                z = interval(box0.z, box1.z);
-            }
-
-            const interval& axis_interval(int n) const {
-
-                if (n == 1) return y;
-                if (n == 2) return z;
-                return x;
-
-            }
-
-            bool hit(const ray& r, interval ray_t) const {
-
-                const point& ray_orig = r.origin();
-                const vec3& ray_dir = r.direction();
-
-                for (int axis = 0; axis < 3; axis++) {
-                    const interval& ax = axis_interval(axis);
-                    const float adinv = 1.0f / ray_dir[axis];
-
-                    auto t0 = (ax.min - ray_orig[axis]) * adinv;
-                    auto t1 = (ax.max - ray_orig[axis]) * adinv;
-
-                    if (t0 < t1) {
-                        if (t0 > ray_t.min) ray_t.min = t0;
-                        if (t1 < ray_t.max) ray_t.max = t1;
-                    } else {
-                        if (t1 > ray_t.min) ray_t.min = t1;
-                        if (t0 < ray_t.max) ray_t.max = t0;
-                    }
-
-                    if (ray_t.max <= ray_t.min) {
-                        return false;
-                    }
-                }
-
-                return true;
-            }
-
-            
-            interval x, y, z;
-
-
-        private:
-
-    };
     
 
     class sphere : public hittable {
-        public:
-            // STATIONARY SPHERE
-            __device__ 
-            sphere (const point& static_center, float radius, material* mat) : center(static_center, vec3(0.0f, 0.0f, 0.0f)), radius(radius), mat_ptr(mat){
-                auto rvec = vec3(radius, radius, radius);
-                bbox = aabb(static_center - rvec, static_center + rvec);
-            }
-            // MOVING SPHERE
-            __device__ 
-            sphere (const point& center1, const point& center2, float radius, material* mat) : center(center1, center2 - center1), radius(radius), mat_ptr(mat){
-                auto rvec = vec3(radius, radius, radius);
-                aabb box1(center.at(0) - rvec, center.at(0) + rvec);
-                aabb box2(center.at(1) - rvec, center.at(1) + rvec);
-                bbox = aabb(box1, box2);
+    public:
+        point center_start, center_end;  // Start and end points of the sphere movement
+        float time_start, time_end;      // Time range for the sphere's movement
+        float radius;
+        material* mat_ptr;
 
-            }
-            __device__ 
-            bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
-                
-                point current_center = center.at(r.time());
-                vec3 oc = current_center - r.origin();
+        // Constructor for static sphere
+        __device__
+        sphere(const point& static_center, float r, material* mat)
+            : center_start(static_center), center_end(static_center),
+              time_start(0), time_end(0), radius(r), mat_ptr(mat) {}
 
-                float a = glm::dot(r.direction(), r.direction());
-                float h = glm::dot(r.direction(), oc);
-                float c = glm::dot(oc, oc) - radius * radius;
-                float discriminant = h * h -  a * c;
-                if (discriminant < 0 ) {
+        // Constructor for moving sphere
+        __device__
+        sphere(const point& center1, const point& center2, float t0, float t1, float r, material* mat)
+            : center_start(center1), center_end(center2),
+              time_start(t0), time_end(t1), radius(r), mat_ptr(mat) {}
+
+        // Method to get the sphere's center at a given time
+        __device__
+        point center(float time) const {
+            // Linear interpolation between center_start and center_end based on the time
+            return center_start + ((time - time_start) / (time_end - time_start)) * (center_end - center_start);
+        }
+
+        // Hit method to detect ray-sphere intersections
+        __device__
+        bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
+            point sphere_center = center(r.time());
+            vec3 oc = r.origin() - sphere_center;
+            float a = glm::dot(r.direction(), r.direction());
+            float half_b = glm::dot(oc, r.direction());
+            float c = glm::dot(oc, oc) - radius * radius;
+            float discriminant = half_b * half_b - a * c;
+
+            if (discriminant < 0) return false;
+
+            float sqrtd = sqrt(discriminant);
+
+            // Find the nearest root that lies in the acceptable range
+            float root = (-half_b - sqrtd) / a;
+            if (!ray_t.surrounds(root)) {
+                root = (-half_b + sqrtd) / a;
+                if (!ray_t.surrounds(root))
                     return false;
-                }
-
-                float sqrtd = sqrt(discriminant); 
-
-                /* Find the nearest root that lies in the acceptable range */
-                float root = (h - sqrtd) / a;
-                if (!ray_t.surrounds(root)) {
-                    root = (h + sqrtd) / a;
-                    if (!ray_t.surrounds(root))
-                        return false;
-                }
-
-                rec.t = root;
-                rec.p = r.at(rec.t);
-                vec3 outward_normal = (rec.p - current_center) / radius;
-                rec.set_face_normal(r, outward_normal);
-                get_sphere_uv(outward_normal, rec.u, rec.v);
-                rec.mat_ptr = mat_ptr;
-
-                return true;
             }
 
-            material* mat_ptr;
+            rec.t = root;
+            rec.p = r.at(rec.t);
+            vec3 outward_normal = (rec.p - sphere_center) / radius;
+            rec.set_face_normal(r, outward_normal);
+            rec.mat_ptr = mat_ptr;
+            return true;
+        }
 
-        private:
-            ray center;
-            float radius;
-            aabb bbox;
+        // Bounding box method to return the AABB for the sphere
+        __device__
+        bool bounding_box(float time0, float time1, AABB& output_box) const override {
+            // Calculate bounding boxes for both the start and end times of the sphere's movement
+            AABB box_start(
+                center(time0) - vec3(radius, radius, radius),
+                center(time0) + vec3(radius, radius, radius)
+            );
+            AABB box_end(
+                center(time1) - vec3(radius, radius, radius),
+                center(time1) + vec3(radius, radius, radius)
+            );
 
-            __device__
-            static void get_sphere_uv(const point& p, float& u, float& v){
-                // p: a given point on the sphere of radius one, centered at the origin.
-                // u: returned value [0,1] of angle around the Y axis from X=-1.
-                // v: returned value [0,1] of angle from Y=-1 to Y=+1.
-                //     <1 0 0> yields <0.50 0.50>       <-1  0  0> yields <0.00 0.50>
-                //     <0 1 0> yields <0.50 1.00>       < 0 -1  0> yields <0.50 0.00>
-                //     <0 0 1> yields <0.25 0.50>       < 0  0 -1> yields <0.75 0.50>
-
-                auto theta = std::acos(-p.y);
-                auto phi = std::atan2(-p.z, p.x) + pi;
-
-                u = phi / (2*pi);
-                v = theta / pi;
-            }
+            output_box = AABB::surrounding_box(box_start, box_end);
+            return true;
+        }
     };
 
 
+    // class sphere : public hittable {
+    // public:
+        
+    //     point center_start, center_end;  // Start and end points of the sphere movement
+    //     float time_start, time_end;
+    //     // point center;
+    //     float radius;
+    //     material* mat_ptr;
+
+    //     // Constructor for stationary sphere
+    //     __device__ 
+    //     sphere(const point& static_center, float r, material* mat) 
+    //         : center(static_center), radius(r), mat_ptr(mat) {}
+
+    //     // // Constructor for moving sphere
+    //     // __device__ 
+    //     // sphere(const point& center1, const point& center2, float time1, float time2, float r, material* mat) 
+    //     //     : center(center1, center2), radius(r), mat_ptr(mat) {}
+
+    //     // Constructor for moving sphere
+    //     __device__ 
+    //     sphere(const point& center1, const point& center2, float time1, float time2, float r, material* mat)
+    //         : center_start(center1), center_end(center2), time_start(time1), time_end(time2), radius(r), mat_ptr(mat) {}
+
+    //     __device__ 
+    //     point center(float time) const {
+    //         return center_start + ((time - time_start) / (time_end - time_start)) * (center_end - center_start);
+    //     }
+
+    //     // Implement hit function as before
+    //     __device__ 
+    //     bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
+    //         vec3 oc = r.origin() - center;
+    //         float a = glm::dot(r.direction(), r.direction());
+    //         float half_b = glm::dot(oc, r.direction());
+    //         float c = glm::dot(oc, oc) - radius * radius;
+    //         float discriminant = half_b * half_b - a * c;
+
+    //         if (discriminant < 0) return false;
+
+    //         float sqrtd = sqrt(discriminant);
+
+    //         // Find the nearest root that lies in the acceptable range
+    //         float root = (-half_b - sqrtd) / a;
+    //         if (!ray_t.surrounds(root)) {
+    //             root = (-half_b + sqrtd) / a;
+    //             if (!ray_t.surrounds(root))
+    //                 return false;
+    //         }
+
+    //         rec.t = root;
+    //         rec.p = r.at(rec.t);
+    //         vec3 outward_normal = (rec.p - center) / radius;
+    //         rec.set_face_normal(r, outward_normal);
+    //         rec.mat_ptr = mat_ptr;
+    //         return true;
+    //     }
+
+    //     // Implement bounding_box function
+    //     __device__
+    //     bool bounding_box(float time0, float time1, aabb& output_box) const override {
+    //         output_box = aabb(
+    //             center - vec3(radius, radius, radius),
+    //             center + vec3(radius, radius, radius)
+    //         );
+    //         return true;
+    //     }
+    // };
+
+
+
+    // class hittable_list : public hittable {
+    //     public:
+    //     hittable** list;
+    //     int list_size;
+    //     aabb bbox;
+
+    //     __device__ 
+    //     hittable_list() {}
+    //     __device__ 
+    //     hittable_list(hittable **list, int n) : list(list), list_size(n)  {
+    //         for(int i = 0; i < list_size; i++){
+    //             bbox = aabb(bbox, list[i]->bounding_box());
+    //         }
+    //     }
+    //     // __device__
+    //     // void clear() {list_size = 0; }
+
+    //     __device__ 
+    //     bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
+    //         hit_record temp_rec;
+    //         bool hit_anything = false;
+    //         auto closest_so_far = ray_t.max;
+
+    //         for (int i = 0; i < list_size; i++) {
+    //             if (list[i]->hit(r, interval(ray_t.min, closest_so_far), temp_rec)){
+    //                 hit_anything = true;
+    //                 closest_so_far = temp_rec.t;
+    //                 rec = temp_rec;
+    //             }
+    //         }
+
+    //         return hit_anything;
+    //     }
+    //     __device__
+    //     aabb bounding_box() const override { return bbox; }
+    // };
+
+
     class hittable_list : public hittable {
-        public:
+    public:
         hittable** list;
         int list_size;
-        aabb bbox;
 
-        __device__ 
-        hittable_list() {}
-        __device__ 
-        hittable_list(hittable **list, int n) : list(list), list_size(n)  {
-            for(int i = 0; i < list_size; i++){
-                bbox = aabb(bbox, list[i]->bounding_box());
-            }
-        }
-        // __device__
-        // void clear() {list_size = 0; }
+        __device__ hittable_list() {}
+        __device__ hittable_list(hittable** l, int n) : list(l), list_size(n) {}
 
         __device__ 
         bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
@@ -278,7 +430,7 @@ namespace rayos {
             auto closest_so_far = ray_t.max;
 
             for (int i = 0; i < list_size; i++) {
-                if (list[i]->hit(r, interval(ray_t.min, closest_so_far), temp_rec)){
+                if (list[i]->hit(r, interval(ray_t.min, closest_so_far), temp_rec)) {
                     hit_anything = true;
                     closest_so_far = temp_rec.t;
                     rec = temp_rec;
@@ -288,19 +440,225 @@ namespace rayos {
             return hit_anything;
         }
 
-        aabb bounding_box() const override { return bbox; }
+        // Implement bounding_box function
+        __device__
+        bool bounding_box(float time0, float time1, AABB& output_box) const override {
+            if (list_size == 0) return false;
+
+            AABB temp_box;
+            bool first_box = true;
+
+            for (int i = 0; i < list_size; i++) {
+                if (!list[i]->bounding_box(time0, time1, temp_box)) return false;
+                output_box = first_box ? temp_box : AABB::surrounding_box(output_box, temp_box);
+                first_box = false;
+            }
+
+            return true;
+        }
     };
+
+
+    // class bvh_node : public hittable {
+    //     public:
+    //         // bvh_node(hittable** objects) : bvh_node(objects, 0, )
+    //         __device__
+    //         bvh_node(hittable** objects, size_t start, size_t end, curandState_t* states){
+    //             curandState_t  x = states[0];
+    //             // int axis = (int)random_float_range(&x, 0.0, 2.0f);
+    //             int axis = (int)(3 * random_float(&x)); // 0, 1, or 2
+
+    //             auto comparator = (axis == 0) ? box_x_compare : (axis == 1) ? box_y_compare : box_z_compare;
+
+    //             size_t object_span = end - start;
+    //             if (object_span == 1) {
+    //                 left = right = objects[start];
+    //             } else if (object_span == 2) {
+    //                 left = objects[start];
+    //                 right = objects[start + 1];
+    //             } else {
+    //                 thrust::sort(thrust::device, objects + start, objects + end, comparator);
+    //                 auto mid = start + object_span / 2;
+
+    //                 left = new bvh_node(objects, start, mid, states);
+    //                 right = new bvh_node(objects, mid, end, states);
+    //             }
+    //             bbox = aabb(left->bounding_box(), right->bounding_box());
+
+    //         }
+    //         __device__
+    //         bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
+    //             if (!bbox.hit(r, ray_t)) return false;
+    //             bool hit_left = left->hit(r, ray_t, rec);
+    //             bool hit_right = right->hit(r, interval(ray_t.min, hit_left ? rec.t : ray_t.max), rec);
+
+    //             return hit_left || hit_right;
+    //         }
+    //         __device__
+    //         aabb bounding_box() const override { return bbox; }
+            
+    //     private:
+    //         hittable* left;
+    //         hittable* right;
+    //         aabb bbox;
+
+    //         __device__
+    //         static bool box_compare( hittable* a, hittable* b, int axis_index) {
+    //             auto a_axis_interval = a->bounding_box().axis_interval(axis_index);
+    //             auto b_axis_interval = b->bounding_box().axis_interval(axis_index);
+    //             return a_axis_interval.min < b_axis_interval.min;
+
+    //         }
+    //         __device__
+    //         static bool box_x_compare (hittable* a, hittable* b){
+    //             return box_compare(a, b, 0);
+    //         }
+
+    //         __device__
+    //         static bool box_y_compare (hittable* a, hittable* b){
+    //             return box_compare(a, b, 1);
+    //         }
+
+    //         __device__
+    //         static bool box_z_compare (hittable* a, hittable* b){
+    //             return box_compare(a, b, 2);
+    //         }
+
+    // };
+    // class bvh_node : public hittable {
+    // public:
+    //     hittable* left;
+    //     hittable* right;
+    //     AABB box;
+
+    //     __device__ bvh_node() {}
+
+    //     __device__ bvh_node(hittable** list, int start, int end, curandState_t* state) {
+    //         int axis = int(3 * random_float(state));
+    //         auto comparator = (axis == 0) ? box_x_compare : (axis == 1) ? box_y_compare : box_z_compare;
+
+    //         int object_span = end - start;
+
+    //         if (object_span == 1) {
+    //             left = right = list[start];
+    //         } else if (object_span == 2) {
+    //             if (comparator(list[start], list[start + 1])) {
+    //                 left = list[start];
+    //                 right = list[start + 1];
+    //             } else {
+    //                 left = list[start + 1];
+    //                 right = list[start];
+    //             }
+    //         } else {
+    //             thrust::sort(thrust::device, list + start, list + end, comparator);
+    //             auto mid = start + object_span / 2;
+    //             left = new bvh_node(list, start, mid, state);
+    //             right = new bvh_node(list, mid, end, state);
+    //         }
+
+    //         AABB box_left, box_right;
+
+    //         if (!left->bounding_box(0, 0, box_left) || !right->bounding_box(0, 0, box_right))
+    //             printf("No bounding box in bvh_node constructor.\n");
+
+    //         box = AABB::surrounding_box(box_left, box_right);
+    //     }
+
+    //     __device__ bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
+    //         if (!box.hit(r, ray_t))
+    //             return false;
+
+    //         bool hit_left = left->hit(r, ray_t, rec);
+    //         bool hit_right = right->hit(r, interval(ray_t.min, hit_left ? rec.t : ray_t.max), rec);
+
+    //         return hit_left || hit_right;
+    //     }
+
+    //     __device__ bool bounding_box(float time0, float time1, AABB& output_box) const {
+    //         output_box = box;
+    //         return true;
+    //     }
+
+    //     __device__ static bool box_compare(const hittable* a, const hittable* b, int axis) {
+    //         AABB box_a, box_b;
+    //         if (!a->bounding_box(0, 0, box_a) || !b->bounding_box(0, 0, box_b))
+    //             printf("No bounding box in bvh_node constructor.\n");
+    //         return box_a.minimum[axis] < box_b.minimum[axis];
+    //     }
+
+    //     __device__ static bool box_x_compare(const hittable* a, const hittable* b) { return box_compare(a, b, 0); }
+    //     __device__ static bool box_y_compare(const hittable* a, const hittable* b) { return box_compare(a, b, 1); }
+    //     __device__ static bool box_z_compare(const hittable* a, const hittable* b) { return box_compare(a, b, 2); }
+    // };
 
     class bvh_node : public hittable {
-        public:
-            bvh_node(hittable_list** list) : bvh_node(list->)
-            
-        private:
-            hittable** left;
-            hittable** right;
-            aabb bbox;
+public:
+    hittable* left;
+    hittable* right;
+    AABB box;
 
-    };
+    __device__ bvh_node() {}
+
+    __device__ bvh_node(hittable** list, int start, int end, curandState_t* state) {
+        int axis = int(3 * random_float(state));  // Randomly choose an axis
+        auto comparator = (axis == 0) ? box_x_compare : (axis == 1) ? box_y_compare : box_z_compare;
+
+        int object_span = end - start;
+
+        if (object_span == 1) {
+            left = right = list[start];
+        } else if (object_span == 2) {
+            if (comparator(list[start], list[start + 1])) {
+                left = list[start];
+                right = list[start + 1];
+            } else {
+                left = list[start + 1];
+                right = list[start];
+            }
+        } else {
+            thrust::sort(thrust::device, list + start, list + end, comparator);
+            auto mid = start + object_span / 2;
+            left = new bvh_node(list, start, mid, state);
+            right = new bvh_node(list, mid, end, state);
+        }
+
+        AABB box_left, box_right;
+
+        if (!left->bounding_box(0, 0, box_left) || !right->bounding_box(0, 0, box_right)) {
+            printf("No bounding box in bvh_node constructor.\n");
+        }
+
+        box = AABB::surrounding_box(box_left, box_right);
+    }
+
+    __device__ bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
+        if (!box.hit(r, ray_t))
+            return false;
+
+        bool hit_left = left->hit(r, ray_t, rec);
+        bool hit_right = right->hit(r, interval(ray_t.min, hit_left ? rec.t : ray_t.max), rec);
+
+        return hit_left || hit_right;
+    }
+
+    __device__ bool bounding_box(float time0, float time1, AABB& output_box) const {
+        output_box = box;
+        return true;
+    }
+
+    __device__ static bool box_compare(const hittable* a, const hittable* b, int axis) {
+        AABB box_a, box_b;
+        if (!a->bounding_box(0, 0, box_a) || !b->bounding_box(0, 0, box_b))
+            printf("No bounding box in bvh_node constructor.\n");
+        return box_a.minimum[axis] < box_b.minimum[axis];
+    }
+
+    __device__ static bool box_x_compare(const hittable* a, const hittable* b) { return box_compare(a, b, 0); }
+    __device__ static bool box_y_compare(const hittable* a, const hittable* b) { return box_compare(a, b, 1); }
+    __device__ static bool box_z_compare(const hittable* a, const hittable* b) { return box_compare(a, b, 2); }
+};
+
+
 
     class MyCam {
         public:
@@ -486,6 +844,13 @@ namespace rayos {
             float refraction_index;
             
     };
+
+    template<typename T>
+    __device__ void swap(T& a, T& b) {
+        const T temp = a;
+        a = b;
+        b = temp;
+    }
 
 
 

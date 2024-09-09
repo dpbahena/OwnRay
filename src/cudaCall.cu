@@ -84,8 +84,10 @@ namespace rayos {
             if (choose_mat < 0.8f){
                 vec3 albedo = vec3(RNDi, RNDi, RNDi) * vec3(RNDj, RNDj, RNDj);
                 sphere_material = new lambertian(albedo);
-                auto center2 = center + vec3(0.0f, RND(0.0f, 0.5f), 0.0f);
-                list[across_x * j + i] = new sphere(center, center2, 0.2f, sphere_material);
+                // auto center2 = center + vec3(0.0f, RND(0.0f, 0.5f), 0.0f);
+                // list[across_x * j + i] = new sphere(center, center2, 0.2f, sphere_material);
+                list[across_x * j + i] = new sphere(center, 0.2f, sphere_material);
+                // list[across_x * j + i] = new sphere(center, center2, 0.0f, 1.5f, 0.2f, sphere_material);
             } else if (choose_mat < 0.95f) {
                 vec3 albedo = vec3(0.5f * (1.0f + RNDi), 0.5f * (1.0f + RNDj), 0.5f * (1.0f + RNDi));
                 fuzz = 0.5f * RNDj;
@@ -105,7 +107,9 @@ namespace rayos {
             fuzz = 0.5f * RNDj;
             sphere_material = new metal(albedo, fuzz);
             // sphere_material = new dielectric(1.75);
-            list[across_x * j + i] = new sphere(center, 0.2f, sphere_material);
+            auto center2 = center + vec3(0.0f, RND(0.0f, 0.5f), 0.0f);
+            list[across_x * j + i] = new sphere(center, center2, 0.0f, 1.5f, 0.2f, sphere_material);
+            // list[across_x * j + i] = new sphere(center, 0.2f, sphere_material);
             
             
         }
@@ -174,7 +178,7 @@ namespace rayos {
 
 
     
-    __global__ void createWorld(hittable** list, hittable** world, MyCam** camera, int width, int height, int samples, int depth, int N){
+    __global__ void createWorld(hittable** list, hittable** world, MyCam** camera, int width, int height, int samples, int depth, int N,  curandState_t* states){
 
         lambertian* ground_material = new lambertian(vec3(0.5f, 0.5f, 0.5f));
         metal*      left_material   = new metal(vec3(0.7f, 0.6f, 0.5f), 0.0f);
@@ -192,6 +196,8 @@ namespace rayos {
         
         
         *world      = new hittable_list(list, N + 4);  // the list has N + 4 spheres
+
+        // *world = new bvh_node(list, 0, N + 4, states);
         
         *camera     = new MyCam(width, height);  
         (*camera)->samples_per_pixel = samples;
@@ -317,7 +323,7 @@ namespace rayos {
         checkCudaErrors(cudaMalloc((void**)&d_world, sizeof(hittable*) ));
         MyCam** d_camera;
         checkCudaErrors(cudaMalloc((void**)&d_camera, sizeof(MyCam*) ));
-        createWorld<<<1, 1>>>(d_list, d_world, d_camera, width, height, samples, depth, random_spheres);
+        createWorld<<<1, 1>>>(d_list, d_world, d_camera, width, height, samples, depth, random_spheres, d_states_0);
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize() );
 
