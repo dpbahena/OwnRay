@@ -103,6 +103,7 @@ namespace rayos {
     void CudaCall::cudaCall(int width, int height, int samples, int depth, bool info_flag)
     {
         
+        
         Renderer renderer{window};
         uint32_t* colorBuffer;  
         checkCudaErrors(cudaMallocManaged(&colorBuffer, width * height * sizeof(uint32_t)));
